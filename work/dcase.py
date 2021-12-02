@@ -100,6 +100,7 @@ class AudioCNN(nn.Module):
     
 def train(dataloader, model, loss_fn, optimizer, args, device):
     size = len(dataloader.dataset)
+    num_batches = len(dataloader)
     model.train()
     for batch, (X, y) in enumerate(dataloader):
         X, y = X.to(device), y.to(device)
@@ -114,8 +115,8 @@ def train(dataloader, model, loss_fn, optimizer, args, device):
         optimizer.step()
 
         if batch % args.print_frequency == 0:
-            loss, current = loss.item(), batch * len(X)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+            loss, current = loss.item(), batch * args.batch_size
+            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}], batch={batch:>3d}/{num_batches:>3d}, current bsize={len(X):>3d}")
             
 def test(dataloader, model, loss_fn, device):
     size = len(dataloader.dataset)
@@ -141,8 +142,18 @@ def main(args):
     test_data = DCASE(Path(args.dataset_root) / "evaluation" , 3)
 
     # Create data loaders.
-    train_dataloader = DataLoader(training_data, args.batch_size)
-    test_dataloader = DataLoader(test_data, args.batch_size)
+    train_dataloader = DataLoader(
+        training_data, 
+        batch_size=args.batch_size,
+        shuffle=True,
+        pin_memory=True
+    )
+    test_dataloader = DataLoader(
+        test_data, 
+        batch_size=args.batch_size,
+        shuffle=True,
+        pin_memory=True
+    )
     
     model = AudioCNN(in_channels = 10).to(device)
     
