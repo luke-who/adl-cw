@@ -1,15 +1,17 @@
-from torch.utils.data.dataset import Dataset
+#!/usr/bin/env python3
 import torch
-from torchvision import transforms
-
+from torch import nn
+from torch.utils.data import Dataset, DataLoader
+import argparse
 import numpy as np
-from pathlib import Path
 import pandas as pd
+from pathlib import Path
 
 class DCASE(Dataset):
     def __init__(self, root_dir: str, clip_duration: int):
         self._root_dir = Path(root_dir)
         self._labels = pd.read_csv((self._root_dir / 'labels.csv'), names=['file', 'label'])
+        # print(self._labels.label.astype('category'))
         self._labels['label'] = self._labels.label.astype('category').cat.codes.astype('int') #create categorical labels
         self._clip_duration = clip_duration
         self._total_duration = 30 #DCASE audio length is 30s
@@ -55,3 +57,109 @@ class DCASE(Dataset):
 
     def __len__(self):
         return self._data_len
+
+class AudioCNN(nn.Module):
+    def __init__(self, in_channels=1):
+        super().__init__()
+        self.cnn_neuro_stack = nn.Sequential(
+            
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=128,
+                kernel_size=(5, 5),
+                padding=(2, 2),
+            ),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(5, 5), stride=(5, 5)),
+            
+            nn.Conv2d(
+                in_channels=128,
+                out_channels=256,
+                kernel_size=(5, 5),
+                padding=(2, 2),
+            ),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=(5, 5), stride=(5, 5)),
+            
+            
+            nn.Flatten(),
+            nn.Dropout(p=0.2),
+            nn.Linear(3072,1000),
+            nn.BatchNorm1d(1000),
+            nn.ReLU(),
+            
+            nn.Dropout(p=0.2),
+            nn.Linear(1000,15)
+        )
+
+    def forward(self, x):
+        logits = self.cnn_neuro_stack(x)
+        return logits
+    
+def train(dataloader, model, loss_fn, optimizer, args, device):
+    size = len(dataloader.dataset)
+    model.train()
+    for batch, (X, y) in enumerate(dataloader):
+        X, y = X.to(device), y.to(device)
+
+        # Compute prediction error
+        pred = model(X)
+        loss = loss_fn(pred, y)
+
+        # Backpropagation
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if batch % args.print_frequency == 0:
+            loss, current = loss.item(), batch * len(X)
+            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+            
+def test(dataloader, model, loss_fn, device):
+    size = len(dataloader.dataset)
+    num_batches = len(dataloader)
+    model.eval()
+    test_loss, correct = 0, 0
+    with torch.no_grad():
+        for X, y in dataloader:
+            X, y = X.to(device), y.to(device)
+            pred = model(X)
+            test_loss += loss_fn(pred, y).item()
+            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+    test_loss /= num_batches
+    correct /= size
+    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n") 
+    
+def main(args):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using {device} device.")      
+
+    # Load datasets.
+    training_data = DCASE(Path(args.dataset_root) / "development", 3)
+    test_data = DCASE(Path(args.dataset_root) / "evaluation" , 3)
+
+    # Create data loaders.
+    train_dataloader = DataLoader(training_data, args.batch_size)
+    test_dataloader = DataLoader(test_data, args.batch_size)
+    
+    model = AudioCNN(in_channels = 10).to(device)
+    
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+    
+    for t in range(args.epochs):
+        print(f"Epoch {t+1}/{args.epochs}\n-------------------------------")
+        train(train_dataloader, model, loss_fn, optimizer, args, device)
+        test(test_dataloader, model, loss_fn, device)
+    print("Done!")
+    
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch-size", default=64, type=int)
+    parser.add_argument("--dataset-root", default="../ADL_DCASE_DATA")
+    parser.add_argument("--print-frequency", default=1, type=int)
+    parser.add_argument("--epochs", default=20, type=int)
+    parser.add_argument("--learning-rate", default=1e-4, type=float)
+    main(parser.parse_args())
