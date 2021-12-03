@@ -104,29 +104,62 @@ class Trainer:
     def __init__(self, model, dataLoaders, args, device, summary_writer):
         self.model = model
         self.train_dataloader, self.test_dataloader = dataLoaders
+        self.train_set_size = len(self.train_dataloader.dataset)
+        self.train_batches = len(self.train_dataloader)
+        self.test_set_size = len(self.test_dataloader.dataset)
+        self.test_batches = len(self.test_dataloader)
         self.args = args
         self.device = device
         self.summary_writer = summary_writer
         
-    def train(self):
-        train_set_size = len(self.train_dataloader.dataset)
-        train_batches = len(self.train_dataloader)
+    def metrics(self, logits, labels, loss, batch, current_bsize, print_metrics = False):
+        batch_size = logits.shape[0]
+        catagories = logits.shape[1]
+        batch_count = (logits.argmax(dim=1) == labels).sum()
+        batch_accuracy = batch_count.item()/batch_size
+        class_accuracy = []
         
+        for i in range(catagories):
+            preds = logits.argmax(dim=1)
+            max_count = (labels == i).sum().item()
+            if max_count != 0:
+                cat_count = torch.bitwise_and(preds == labels, preds == i).sum()
+                cat_acc = cat_count.item()/max_count
+            else :
+                cat_acc = 0
+            class_accuracy.append(cat_acc*100)
+        
+        ca_str = ""
+        for acc in class_accuracy:
+            ca_str = ca_str + f"{acc:3.0f},"
+        if print_metrics:
+            print(
+                f"loss: {loss:>7f}, "
+                f"[{batch*self.args.batch_size:>5d}/{self.train_set_size:>5d}], "
+                f"batch={batch+1:>3d}/{self.train_batches:>3d}, "
+                f"current_bsize={current_bsize:>3d}, "
+                f"batch_accuracy:{batch_accuracy*100:5.1f}%, "
+                f"class_accuracy:[{ca_str}]"
+            )
+        return batch_accuracy, class_accuracy
+        
+    def train(self):        
         for epoch in range(self.args.epochs):
             print(f"Epoch {epoch+1}/{self.args.epochs}\n-------------------------------")
             self.model.train()
             
             for batch, (X, y) in enumerate(self.train_dataloader):
+                X, y = X.to(self.device), y.to(self.device)
                 logits, loss = self.train_step((X, y))
+                
                 if batch % self.args.metric_frequency == 0:
-                    print(f"loss: {loss:>7f}  [{batch*self.args.batch_size:>5d}/{train_set_size:>5d}], batch={batch+1:>3d}/{train_batches:>3d}, current_bsize={len(X):>3d}")
+                    self.metrics(logits, y, loss, batch, len(X), print_metrics = True)
             self.test()
             # summary_writer.add_scalar("epoch", t, step)
         self.summary_writer.close()
         
     def train_step(self, train_data):
         (X, y) = train_data
-        X, y = X.to(self.device), y.to(self.device)
         
         # Compute prediction error
         logits = self.model(X)
@@ -140,8 +173,6 @@ class Trainer:
         return logits, loss.item()
         
     def test(self):
-        test_set_size = len(self.test_dataloader.dataset)
-        test_batches = len(self.test_dataloader)
         self.model.eval()
         test_loss, correct = 0, 0
         with torch.no_grad():
@@ -150,8 +181,8 @@ class Trainer:
                 logits = self.model(X)
                 test_loss += self.model.loss_fn(logits, y).item()
                 correct += (logits.argmax(1) == y).type(torch.float).sum().item()
-        test_loss /= test_batches
-        correct /= test_set_size
+        test_loss /= self.test_batches
+        correct /= self.test_set_size
         print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")  
     
 def get_summary_writer_log_dir(args: argparse.Namespace) -> str:
