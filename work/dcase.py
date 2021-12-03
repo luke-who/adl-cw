@@ -109,18 +109,19 @@ class Trainer:
         self.summary_writer = summary_writer
         
     def train(self):
-        training_set_size = len(self.train_dataloader.dataset)
-        training_batches = len(self.train_dataloader)
+        train_set_size = len(self.train_dataloader.dataset)
+        train_batches = len(self.train_dataloader)
         
         for epoch in range(self.args.epochs):
             print(f"Epoch {epoch+1}/{self.args.epochs}\n-------------------------------")
+            self.model.train()
             
             for batch, (X, y) in enumerate(self.train_dataloader):
                 logits, loss = self.train_step((X, y))
-                print(f"loss: {loss:>7f}  [{batch*self.args.batch_size:>5d}/{training_set_size:>5d}], batch={batch+1:>3d}/{training_batches:>3d}, current bsize={len(X):>3d}")
-            # test(test_dataloader, model, device)
+                if batch % self.args.metric_frequency == 0:
+                    print(f"loss: {loss:>7f}  [{batch*self.args.batch_size:>5d}/{train_set_size:>5d}], batch={batch+1:>3d}/{train_batches:>3d}, current_bsize={len(X):>3d}")
+            self.test()
             # summary_writer.add_scalar("epoch", t, step)
-            # step += steps
         self.summary_writer.close()
         
     def train_step(self, train_data):
@@ -139,43 +140,19 @@ class Trainer:
         return logits, loss.item()
         
     def test(self):
-        pass
-        
-def train(dataloader, model, args, device):
-    size = len(dataloader.dataset)
-    num_batches = len(dataloader)
-    model.train()
-    for batch, (X, y) in enumerate(dataloader):
-        X, y = X.to(device), y.to(device)
-
-        # Compute prediction error
-        logits = model(X)
-        loss = model.loss_fn(logits, y)
-
-        # Backpropagation
-        model.optimizer.zero_grad()
-        loss.backward()
-        model.optimizer.step()
-
-        if batch % args.print_frequency == 0:
-            loss, current = loss.item(), batch * args.batch_size
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}], batch={batch:>3d}/{num_batches:>3d}, current bsize={len(X):>3d}")
-    return num_batches
-    
-def test(dataloader, model, device):
-    size = len(dataloader.dataset)
-    num_batches = len(dataloader)
-    model.eval()
-    test_loss, correct = 0, 0
-    with torch.no_grad():
-        for X, y in dataloader:
-            X, y = X.to(device), y.to(device)
-            logits = model(X)
-            test_loss += model.loss_fn(logits, y).item()
-            correct += (logits.argmax(1) == y).type(torch.float).sum().item()
-    test_loss /= num_batches
-    correct /= size
-    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n") 
+        test_set_size = len(self.test_dataloader.dataset)
+        test_batches = len(self.test_dataloader)
+        self.model.eval()
+        test_loss, correct = 0, 0
+        with torch.no_grad():
+            for X, y in self.test_dataloader:
+                X, y = X.to(self.device), y.to(self.device)
+                logits = self.model(X)
+                test_loss += self.model.loss_fn(logits, y).item()
+                correct += (logits.argmax(1) == y).type(torch.float).sum().item()
+        test_loss /= test_batches
+        correct /= test_set_size
+        print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")  
     
 def get_summary_writer_log_dir(args: argparse.Namespace) -> str:
     tb_log_dir_prefix = (
