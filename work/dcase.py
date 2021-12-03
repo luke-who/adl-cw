@@ -107,8 +107,8 @@ def train(dataloader, model, loss_fn, optimizer, args, device):
         X, y = X.to(device), y.to(device)
 
         # Compute prediction error
-        pred = model(X)
-        loss = loss_fn(pred, y)
+        logits = model(X)
+        loss = loss_fn(logits, y)
 
         # Backpropagation
         optimizer.zero_grad()
@@ -118,7 +118,8 @@ def train(dataloader, model, loss_fn, optimizer, args, device):
         if batch % args.print_frequency == 0:
             loss, current = loss.item(), batch * args.batch_size
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}], batch={batch:>3d}/{num_batches:>3d}, current bsize={len(X):>3d}")
-        
+    return num_batches
+    
 def test(dataloader, model, loss_fn, device):
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
@@ -127,9 +128,9 @@ def test(dataloader, model, loss_fn, device):
     with torch.no_grad():
         for X, y in dataloader:
             X, y = X.to(device), y.to(device)
-            pred = model(X)
-            test_loss += loss_fn(pred, y).item()
-            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+            logits = model(X)
+            test_loss += loss_fn(logits, y).item()
+            correct += (logits.argmax(1) == y).type(torch.float).sum().item()
     test_loss /= num_batches
     correct /= size
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n") 
@@ -185,11 +186,11 @@ def main(args):
     step = 0
     for t in range(args.epochs):
         print(f"Epoch {t+1}/{args.epochs}\n-------------------------------")
-        train(train_dataloader, model, loss_fn, optimizer, args, device)
-        summary_writer.add_scalar("epoch", t, step)
+        steps = train(train_dataloader, model, loss_fn, optimizer, args, device)
         test(test_dataloader, model, loss_fn, device)
-        step += 1
-    writer.close()
+        summary_writer.add_scalar("epoch", t, step)
+        step += steps
+    summary_writer.close()
     print("Done!")
     
 if __name__ == "__main__":
