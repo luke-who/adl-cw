@@ -101,14 +101,42 @@ class AudioCNN(nn.Module):
         
 class Trainer:
 
-    def __init__(self, model, args, device, summary_writer):
+    def __init__(self, model, dataLoaders, args, device, summary_writer):
         self.model = model
+        self.train_dataloader, self.test_dataloader = dataLoaders
         self.args = args
         self.device = device
         self.summary_writer = summary_writer
         
-    def train(self, epochs):
-        pass
+    def train(self):
+        training_set_size = len(self.train_dataloader.dataset)
+        training_batches = len(self.train_dataloader)
+        
+        for epoch in range(self.args.epochs):
+            print(f"Epoch {epoch+1}/{self.args.epochs}\n-------------------------------")
+            
+            for batch, (X, y) in enumerate(self.train_dataloader):
+                logits, loss = self.train_step((X, y))
+                print(f"loss: {loss:>7f}  [{batch*self.args.batch_size:>5d}/{training_set_size:>5d}], batch={batch+1:>3d}/{training_batches:>3d}, current bsize={len(X):>3d}")
+            # test(test_dataloader, model, device)
+            # summary_writer.add_scalar("epoch", t, step)
+            # step += steps
+        self.summary_writer.close()
+        
+    def train_step(self, train_data):
+        (X, y) = train_data
+        X, y = X.to(self.device), y.to(self.device)
+        
+        # Compute prediction error
+        logits = self.model(X)
+        loss = self.model.loss_fn(logits, y)
+
+        # Backpropagation
+        self.model.optimizer.zero_grad()
+        loss.backward()
+        self.model.optimizer.step()
+        
+        return logits, loss.item()
         
     def test(self):
         pass
@@ -197,16 +225,8 @@ def main(args):
             flush_secs=5
     )
     
-    step = 0
-    for t in range(args.epochs):
-        print(f"Epoch {t+1}/{args.epochs}\n-------------------------------")
-        steps = train(train_dataloader, model, args, device)
-        test(test_dataloader, model, device)
-        summary_writer.add_scalar("epoch", t, step)
-        step += steps
-    summary_writer.close()
-    # trainer = Trainer(args, model, loss_fn, optimizer,  summary_writer)
-    
+    trainer = Trainer(model, (train_dataloader, test_dataloader), args, device, summary_writer)
+    trainer.train()
     print("Done!")
     
 if __name__ == "__main__":
@@ -214,7 +234,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", default=64, type=int)
     parser.add_argument("--dataset-root", default="../ADL_DCASE_DATA")
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
-    parser.add_argument("--print-frequency", default=1, type=int)
+    parser.add_argument("--metric-frequency", default=1, type=int)
     parser.add_argument("--epochs", default=20, type=int)
     parser.add_argument("--learning-rate", default=1e-4, type=float)
     parser.add_argument("--dropout", default=0, type=float)
