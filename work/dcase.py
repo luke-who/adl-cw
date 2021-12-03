@@ -2,6 +2,7 @@
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.tensorboard import SummaryWriter
 import argparse
 import numpy as np
 import pandas as pd
@@ -59,7 +60,7 @@ class DCASE(Dataset):
         return self._data_len
 
 class AudioCNN(nn.Module):
-    def __init__(self, in_channels=1):
+    def __init__(self, args, in_channels=1):
         super().__init__()
         self.cnn_neuro_stack = nn.Sequential(
             
@@ -85,12 +86,12 @@ class AudioCNN(nn.Module):
             
             
             nn.Flatten(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=args.dropout),
             nn.Linear(3072,1000),
             nn.BatchNorm1d(1000),
             nn.ReLU(),
             
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=args.dropout),
             nn.Linear(1000,15)
         )
 
@@ -117,7 +118,7 @@ def train(dataloader, model, loss_fn, optimizer, args, device):
         if batch % args.print_frequency == 0:
             loss, current = loss.item(), batch * args.batch_size
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}], batch={batch:>3d}/{num_batches:>3d}, current bsize={len(X):>3d}")
-            
+        
 def test(dataloader, model, loss_fn, device):
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
@@ -132,6 +133,22 @@ def test(dataloader, model, loss_fn, device):
     test_loss /= num_batches
     correct /= size
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n") 
+    
+def get_summary_writer_log_dir(args: argparse.Namespace) -> str:
+    tb_log_dir_prefix = (
+        f"CNN_bn_"
+        f"bs={args.batch_size}_"
+        f"lr={args.learning_rate}_"
+        f"dropout={args.dropout}_"
+        f"run_"
+    )
+    i = 0
+    while i < 1000:
+        tb_log_dir = args.log_dir / (tb_log_dir_prefix + str(i))
+        if not tb_log_dir.exists():
+            return str(tb_log_dir)
+        i += 1
+    return str(tb_log_dir)
     
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -154,23 +171,34 @@ def main(args):
         shuffle=True,
         pin_memory=True
     )
-    
-    model = AudioCNN(in_channels = 10).to(device)
+    model = AudioCNN(args, in_channels = 10).to(device)
     
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+    log_dir = get_summary_writer_log_dir(args)
+    print(f"Writing logs to {log_dir}")
+    summary_writer = SummaryWriter(
+            str(log_dir),
+            flush_secs=5
+    )
     
+    step = 0
     for t in range(args.epochs):
         print(f"Epoch {t+1}/{args.epochs}\n-------------------------------")
         train(train_dataloader, model, loss_fn, optimizer, args, device)
+        summary_writer.add_scalar("epoch", t, step)
         test(test_dataloader, model, loss_fn, device)
+        step += 1
+    writer.close()
     print("Done!")
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch-size", default=64, type=int)
     parser.add_argument("--dataset-root", default="../ADL_DCASE_DATA")
+    parser.add_argument("--log-dir", default=Path("logs"), type=Path)
     parser.add_argument("--print-frequency", default=1, type=int)
     parser.add_argument("--epochs", default=20, type=int)
     parser.add_argument("--learning-rate", default=1e-4, type=float)
+    parser.add_argument("--dropout", default=0, type=float)
     main(parser.parse_args())
