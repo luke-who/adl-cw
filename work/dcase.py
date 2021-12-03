@@ -98,8 +98,22 @@ class AudioCNN(nn.Module):
     def forward(self, x):
         logits = self.cnn_neuro_stack(x)
         return logits
-    
-def train(dataloader, model, loss_fn, optimizer, args, device):
+        
+class Trainer:
+
+    def __init__(self, model, args, device, summary_writer):
+        self.model = model
+        self.args = args
+        self.device = device
+        self.summary_writer = summary_writer
+        
+    def train(self, epochs):
+        pass
+        
+    def test(self):
+        pass
+        
+def train(dataloader, model, args, device):
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
     model.train()
@@ -108,19 +122,19 @@ def train(dataloader, model, loss_fn, optimizer, args, device):
 
         # Compute prediction error
         logits = model(X)
-        loss = loss_fn(logits, y)
+        loss = model.loss_fn(logits, y)
 
         # Backpropagation
-        optimizer.zero_grad()
+        model.optimizer.zero_grad()
         loss.backward()
-        optimizer.step()
+        model.optimizer.step()
 
         if batch % args.print_frequency == 0:
             loss, current = loss.item(), batch * args.batch_size
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}], batch={batch:>3d}/{num_batches:>3d}, current bsize={len(X):>3d}")
     return num_batches
     
-def test(dataloader, model, loss_fn, device):
+def test(dataloader, model, device):
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
     model.eval()
@@ -129,7 +143,7 @@ def test(dataloader, model, loss_fn, device):
         for X, y in dataloader:
             X, y = X.to(device), y.to(device)
             logits = model(X)
-            test_loss += loss_fn(logits, y).item()
+            test_loss += model.loss_fn(logits, y).item()
             correct += (logits.argmax(1) == y).type(torch.float).sum().item()
     test_loss /= num_batches
     correct /= size
@@ -174,8 +188,8 @@ def main(args):
     )
     model = AudioCNN(args, in_channels = 10).to(device)
     
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+    model.loss_fn = nn.CrossEntropyLoss()
+    model.optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     log_dir = get_summary_writer_log_dir(args)
     print(f"Writing logs to {log_dir}")
     summary_writer = SummaryWriter(
@@ -186,11 +200,13 @@ def main(args):
     step = 0
     for t in range(args.epochs):
         print(f"Epoch {t+1}/{args.epochs}\n-------------------------------")
-        steps = train(train_dataloader, model, loss_fn, optimizer, args, device)
-        test(test_dataloader, model, loss_fn, device)
+        steps = train(train_dataloader, model, args, device)
+        test(test_dataloader, model, device)
         summary_writer.add_scalar("epoch", t, step)
         step += steps
     summary_writer.close()
+    # trainer = Trainer(args, model, loss_fn, optimizer,  summary_writer)
+    
     print("Done!")
     
 if __name__ == "__main__":
