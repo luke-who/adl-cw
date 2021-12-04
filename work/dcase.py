@@ -183,9 +183,10 @@ class Trainer:
         )
         return total_batch_count, total_class_count, total_loss
     
-def get_summary_writer_log_dir(args: argparse.Namespace) -> str:
+def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") -> str:
     tb_log_dir_prefix = (
         f"CNN_bn_"
+        f"{args.prefix[1:-1]}"
         f"bs={args.batch_size}_"
         f"lr={args.learning_rate}_"
         f"dropout={args.dropout}_"
@@ -252,6 +253,7 @@ def main(args):
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--prefix", default="", type=ascii)
     parser.add_argument("--batch-size", default=64, type=int)
     parser.add_argument("--dataset-root", default="../data/ADL_DCASE_DATA")
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
