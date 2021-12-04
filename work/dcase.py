@@ -10,7 +10,6 @@ from pathlib import Path
 from ..data import dataset
 
 
-
 class AudioCNN(nn.Module):
     def __init__(self, args, in_channels=1):
         super().__init__()
