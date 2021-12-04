@@ -7,7 +7,17 @@ import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from ..data import dataset
+import os,sys
+
+#******* Setting path for importing data from parent directory*******#
+# Getting the name of the directory where the this file is present.
+currentdir = os.path.dirname(os.path.realpath(__file__))
+# Getting the parent directory name where the current directory is present.
+parentdir = os.path.dirname(currentdir)
+# Adding the parent directory to the sys.path.
+sys.path.append(parentdir)
+# Now we can import the module from the parent directory.
+from data import dataset
 
 
 class AudioCNN(nn.Module):
