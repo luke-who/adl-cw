@@ -20,7 +20,7 @@ sys.path.append(parentdir)
 from data import dataset
 
 class AudioCNN(nn.Module):
-    def __init__(self, args, in_channels=1):
+    def __init__(self, args, catagories, in_channels=1):
         super().__init__()
         self.cnn_neuro_stack = nn.Sequential(
             
@@ -52,7 +52,7 @@ class AudioCNN(nn.Module):
             nn.ReLU(),
             
             nn.Dropout(p=args.dropout),
-            nn.Linear(1000,15)
+            nn.Linear(1000, catagories)
         )
 
     def forward(self, x):
@@ -61,13 +61,14 @@ class AudioCNN(nn.Module):
         
 class Trainer:
 
-    def __init__(self, model, dataLoaders, args, device, summary_writer):
+    def __init__(self, model, dataLoaders, catagories, args, device, summary_writer):
         self.model = model
         self.train_dataloader, self.test_dataloader = dataLoaders
         self.train_set_size = len(self.train_dataloader.dataset)
         self.train_batches = len(self.train_dataloader)
         self.test_set_size = len(self.test_dataloader.dataset)
         self.test_batches = len(self.test_dataloader)
+        self.catagories = catagories
         self.args = args
         self.device = device
         self.summary_writer = summary_writer
@@ -92,9 +93,7 @@ class Trainer:
             class_accuracy.append(cat_acc*100)
             class_count.append((cat_count, max_count))
         
-        ca_str = ""
-        for acc in class_accuracy:
-            ca_str = ca_str + f"{acc:3.0f},"
+        ca_str = formatCAList(class_accuracy)
         if print_metrics:
             print(
                 f"loss: {loss:>7f}, "
@@ -104,7 +103,7 @@ class Trainer:
                 f"baccuracy:{batch_accuracy*100:5.1f}%, "
                 f"bclass_accuracy:[{ca_str}]"
             )
-        return batch_count.item(), class_count
+        return np.array([batch_count.item(), batch_size]), np.array(class_count)
         
     def train(self):        
         for epoch in range(self.args.epochs):
@@ -138,16 +137,29 @@ class Trainer:
         
     def test(self):
         self.model.eval()
-        test_loss, correct = 0, 0
+        total_loss = 0
+        total_batch_count = np.zeros((2))
+        total_class_count = np.zeros((self.catagories, 2))
+            
         with torch.no_grad():
-            for X, y in self.test_dataloader:
+            for batch, (X, y) in enumerate(self.test_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
                 logits = self.model(X)
-                test_loss += self.model.loss_fn(logits, y).item()
-                correct += (logits.argmax(1) == y).type(torch.float).sum().item()
-        test_loss /= self.test_batches
-        correct /= self.test_set_size
-        print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")  
+                loss = self.model.loss_fn(logits, y).item()
+                batch_count, class_count = self.metrics(logits, y, loss, batch, len(X))
+                
+                total_batch_count += batch_count
+                total_class_count += class_count
+                total_loss += loss
+                
+        total_loss /= self.test_batches
+        total_acc = total_batch_count[0]/total_batch_count[1]
+        ca_str = formatCAList((total_class_count[:,0]*100)/total_class_count[:,1])
+        print(
+            f"Test Error: \n Accuracy: {(100*total_acc):>0.1f}%, "
+            f"Avg loss: {loss:>8f}, "
+            f"class_accuracy:[{ca_str}]\n"
+        )  
     
 def get_summary_writer_log_dir(args: argparse.Namespace) -> str:
     tb_log_dir_prefix = (
@@ -164,10 +176,18 @@ def get_summary_writer_log_dir(args: argparse.Namespace) -> str:
             return str(tb_log_dir)
         i += 1
     return str(tb_log_dir)
+
+def formatCAList(class_accuracy):
+        ca_str = ""
+        for acc in class_accuracy:
+            ca_str = ca_str + f"{acc:3.0f},"
+        return ca_str
     
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device.")      
+
+    catagories = 15
 
     # Load datasets.
     training_data = dataset.DCASE(Path(args.dataset_root) / "development", 3)
@@ -186,7 +206,7 @@ def main(args):
         shuffle=True,
         pin_memory=True
     )
-    model = AudioCNN(args, in_channels = 10).to(device)
+    model = AudioCNN(args, catagories = catagories, in_channels = 10).to(device)
     
     model.loss_fn = nn.CrossEntropyLoss()
     model.optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
@@ -197,7 +217,7 @@ def main(args):
             flush_secs=5
     )
     
-    trainer = Trainer(model, (train_dataloader, test_dataloader), args, device, summary_writer)
+    trainer = Trainer(model, (train_dataloader, test_dataloader), catagories, args, device, summary_writer)
     trainer.train()
     print("Done!")
     
