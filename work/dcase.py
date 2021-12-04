@@ -19,7 +19,6 @@ sys.path.append(parentdir)
 # Now we can import the module from the parent directory.
 from data import dataset
 
-
 class AudioCNN(nn.Module):
     def __init__(self, args, in_channels=1):
         super().__init__()
@@ -85,7 +84,7 @@ class Trainer:
             preds = logits.argmax(dim=1)
             max_count = (labels == i).sum().item()
             if max_count != 0:
-                cat_count = torch.bitwise_and(preds == labels, preds == i).sum().item()
+                cat_count = ((preds == labels) & (preds == i)).sum().item()
                 cat_acc = cat_count/max_count
             else:
                 cat_count = 0
