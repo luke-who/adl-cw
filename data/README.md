@@ -6,10 +6,10 @@ This is the zip file of the DCASE 2016 dataset. Unzipped it has the following fi
 ```bash
 ├── ADL_DCASE_DATA
 │   ├── development
-│   │   ├── audio
+│   │   ├── audio/
 │   │   └── labels.csv
 │   └── evaluation
-│       ├── audio
+│       ├── audio/
 │       └── labels.csv
 ```
 
