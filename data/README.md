@@ -1,6 +1,6 @@
 # Files
 
-## ADL_DCASE_DATA.zip
+## ADL_DCASE_DATA
 
 This is the zip file of the DCASE 2016 dataset. Unzipped it has the following file format:
 ```bash
