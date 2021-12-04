@@ -105,6 +105,25 @@ class Trainer:
             )
         return np.array([batch_count.item(), batch_size]), np.array(class_count)
         
+    def log_metrics(self, epoch, batch, current_bsize, loss, count, class_count , log_suffix = "train"):
+        steps = epoch * self.train_set_size + batch * self.args.batch_size + current_bsize
+        self.summary_writer.add_scalar("epoch", epoch, steps)
+        self.summary_writer.add_scalars(
+                "accuracy",
+                {log_suffix: percentageArr(count[0], count[1])},
+                steps
+        )
+        self.summary_writer.add_scalars(
+                "class_accuracy_" + log_suffix,
+                {str(k): v for k, v in enumerate(percentageArr(class_count[:,0], class_count[:,1]))},
+                steps
+        )
+        self.summary_writer.add_scalars(
+                "loss",
+                {log_suffix: loss},
+                steps
+        )
+        
     def train(self):        
         for epoch in range(self.args.epochs):
             print(f"Epoch {epoch+1}/{self.args.epochs}\n-------------------------------")
@@ -115,10 +134,11 @@ class Trainer:
                 logits, loss = self.train_step((X, y))
                 
                 if batch % self.args.metric_frequency == 0:
-                    self.metrics(logits, y, loss, batch, len(X), print_metrics = True)
+                    batch_count, class_count = self.metrics(logits, y, loss, batch, len(X), print_metrics = True)
+                    self.log_metrics(epoch, batch, len(X), loss, batch_count, class_count)
                     
-            self.test()
-            # summary_writer.add_scalar("epoch", t, step)
+            total_batch_count, total_class_count, total_loss = self.test()
+            self.log_metrics(epoch, batch, len(X), total_loss, total_batch_count, total_class_count, log_suffix = "test")
         self.summary_writer.close()
         
     def train_step(self, train_data):
@@ -153,13 +173,15 @@ class Trainer:
                 total_loss += loss
                 
         total_loss /= self.test_batches
-        total_acc = total_batch_count[0]/total_batch_count[1]
-        ca_str = formatCAList((total_class_count[:,0]*100)/total_class_count[:,1])
+        total_acc =  percentageArr(total_batch_count[0], total_batch_count[1])
+        total_class_acc = percentageArr(total_class_count[:,0], total_class_count[:,1])
+        total_class_acc = formatCAList(total_class_acc)
         print(
-            f"Test Error: \n Accuracy: {(100*total_acc):>0.1f}%, "
+            f"Test Error: \n Accuracy: {(total_acc):>0.1f}%, "
             f"Avg loss: {loss:>8f}, "
-            f"class_accuracy:[{ca_str}]\n"
-        )  
+            f"class_accuracy:[{total_class_acc}]\n"
+        )
+        return total_batch_count, total_class_count, total_loss
     
 def get_summary_writer_log_dir(args: argparse.Namespace) -> str:
     tb_log_dir_prefix = (
@@ -182,6 +204,13 @@ def formatCAList(class_accuracy):
         for acc in class_accuracy:
             ca_str = ca_str + f"{acc:3.0f},"
         return ca_str
+        
+def percentageArr(count, max):
+    if max != 0:
+        return count*100/max
+    else:
+        return 100
+percentageArr = np.vectorize(percentageArr)
     
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
