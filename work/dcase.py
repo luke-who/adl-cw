@@ -118,16 +118,19 @@ class Trainer:
         batch_count = (logits.argmax(dim=1) == labels).sum()
         batch_accuracy = batch_count.item()/batch_size
         class_accuracy = []
+        class_count = []
         
         for i in range(catagories):
             preds = logits.argmax(dim=1)
             max_count = (labels == i).sum().item()
             if max_count != 0:
-                cat_count = torch.bitwise_and(preds == labels, preds == i).sum()
-                cat_acc = cat_count.item()/max_count
-            else :
-                cat_acc = 0
+                cat_count = torch.bitwise_and(preds == labels, preds == i).sum().item()
+                cat_acc = cat_count/max_count
+            else:
+                cat_count = 0
+                cat_acc = 1
             class_accuracy.append(cat_acc*100)
+            class_count.append((cat_count, max_count))
         
         ca_str = ""
         for acc in class_accuracy:
@@ -138,10 +141,10 @@ class Trainer:
                 f"[{batch*self.args.batch_size:>5d}/{self.train_set_size:>5d}], "
                 f"batch={batch+1:>3d}/{self.train_batches:>3d}, "
                 f"current_bsize={current_bsize:>3d}, "
-                f"batch_accuracy:{batch_accuracy*100:5.1f}%, "
-                f"class_accuracy:[{ca_str}]"
+                f"baccuracy:{batch_accuracy*100:5.1f}%, "
+                f"bclass_accuracy:[{ca_str}]"
             )
-        return batch_accuracy, class_accuracy
+        return batch_count.item(), class_count
         
     def train(self):        
         for epoch in range(self.args.epochs):
@@ -154,6 +157,7 @@ class Trainer:
                 
                 if batch % self.args.metric_frequency == 0:
                     self.metrics(logits, y, loss, batch, len(X), print_metrics = True)
+                    
             self.test()
             # summary_writer.add_scalar("epoch", t, step)
         self.summary_writer.close()
