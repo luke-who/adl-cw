@@ -56,3 +56,19 @@ class DCASE(Dataset):
 
     def __len__(self):
         return self._data_len
+
+class DCASE_clip(DCASE):
+    
+    def __init__(self, root_dir: str, clip_duration: int):
+        super().__init__(root_dir, clip_duration)
+        self._num_clips = self._total_duration // self._clip_duration
+    
+    def __getitem__(self, clip_index):
+        spec_index, clip_offset = divmod(clip_index, self._num_clips)
+        # print(spec_index, clip_offset)
+        spec, label = super().__getitem__(spec_index)
+        return np.expand_dims(spec[clip_offset], axis=0), label
+        
+    def __len__(self):
+        return self._data_len * self._num_clips
+        

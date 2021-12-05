@@ -48,13 +48,13 @@ class AudioCNN(nn.Module):
             
             
             nn.Flatten(),
-            nn.Dropout(p=args.dropout),
-            nn.Linear(3072,1000),
-            nn.BatchNorm1d(1000),
-            nn.ReLU(),
+            # nn.Dropout(p=args.dropout),
+            # nn.Linear(3072,1000),
+            # nn.BatchNorm1d(1000),
+            # nn.ReLU(),
             
             nn.Dropout(p=args.dropout),
-            nn.Linear(1000, catagories)
+            nn.Linear(3072, catagories)
         )
 
     def forward(self, x):
@@ -256,8 +256,8 @@ def main(args):
     catagories = 15
 
     # Load datasets.
-    training_data = dataset.DCASE(Path(args.dataset_root) / "development", 3)
-    test_data = dataset.DCASE(Path(args.dataset_root) / "evaluation" , 3)
+    training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3)
+    test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3)
 
     # Create data loaders.
     train_dataloader = DataLoader(
@@ -272,7 +272,7 @@ def main(args):
         shuffle=True,
         pin_memory=True
     )
-    model = AudioCNN(args, catagories = catagories, in_channels = 10).to(device)
+    model = AudioCNN(args, catagories = catagories, in_channels = 1).to(device)
     
     model.loss_fn = nn.CrossEntropyLoss()
     model.optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
