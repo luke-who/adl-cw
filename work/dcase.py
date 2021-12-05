@@ -5,6 +5,8 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import pandas as pd
 from pathlib import Path
 import os,sys
@@ -73,17 +75,24 @@ class Trainer:
         self.device = device
         self.summary_writer = summary_writer
         
-    def metrics(self, logits, labels, loss, batch, current_bsize, print_metrics = False):
+    def calc_metrics(self, logits, labels, loss, batch, current_bsize, print_metrics = False, calc_confuMatrix = False):
         batch_size = logits.shape[0]
         catagories = logits.shape[1]
         batch_count = (logits.argmax(dim=1) == labels).sum()
         batch_accuracy = batch_count.item()/batch_size
         class_accuracy = []
         class_count = []
+        confusion_matrix = np.zeros((catagories, catagories))
         
         for i in range(catagories):
             preds = logits.argmax(dim=1)
-            max_count = (labels == i).sum().item()
+            matched_labels = labels == i
+            if calc_confuMatrix:
+                for j in range(catagories):
+                    matched_preds = preds == j
+                    confusion_matrix[j,i] = (matched_preds & matched_labels).sum().item()
+            
+            max_count = matched_labels.sum().item()
             if max_count != 0:
                 cat_count = ((preds == labels) & (preds == i)).sum().item()
                 cat_acc = cat_count/max_count
@@ -103,7 +112,7 @@ class Trainer:
                 f"baccuracy:{batch_accuracy*100:5.1f}%, "
                 f"bclass_accuracy:[{ca_str}]"
             )
-        return np.array([batch_count.item(), batch_size]), np.array(class_count)
+        return np.array([batch_count.item(), batch_size]), np.array(class_count), confusion_matrix
         
     def log_metrics(self, epoch, batch, current_bsize, loss, count, class_count , log_suffix = "train"):
         steps = epoch * self.train_set_size + batch * self.args.batch_size + current_bsize
@@ -124,6 +133,30 @@ class Trainer:
                 steps
         )
         
+    def log_plot(self, epoch, total_confusion_matrix):
+        midpoint = (total_confusion_matrix.max() + total_confusion_matrix.min())/2
+
+        fig, ax = plt.subplots(figsize=(8,8))
+        ax.matshow(total_confusion_matrix, cmap='Greens')
+        ax.set_xticks(range(self.catagories))
+        ax.set_yticks(range(self.catagories))
+        # ax.set_xticklabels([])
+        ax.set_xlabel("Predicted label.")
+        # ax.set_yticklabels([])
+        ax.set_ylabel("True label.")
+        for (i, j), z in np.ndenumerate(total_confusion_matrix):
+            if z > midpoint:
+                ax.text(j, i, round(z), color='white', ha='center', va='center')
+            else:
+                ax.text(j, i, round(z), ha='center', va='center')
+        canvas = FigureCanvas(fig)
+        canvas.draw()
+        image = np.array(canvas.renderer.buffer_rgba())
+        image = image / 255
+        image_y, image_x = image.shape[0], image.shape[1]
+        image = image[:,:,0:3]
+        self.summary_writer.add_image('confusion_matrix', image, epoch, dataformats='HWC')
+        
     def train(self):        
         for epoch in range(self.args.epochs):
             print(f"Epoch {epoch+1}/{self.args.epochs}\n-------------------------------")
@@ -134,11 +167,12 @@ class Trainer:
                 logits, loss = self.train_step((X, y))
                 
                 if batch % self.args.metric_frequency == 0:
-                    batch_count, class_count = self.metrics(logits, y, loss, batch, len(X), print_metrics = True)
+                    batch_count, class_count, _ = self.calc_metrics(logits, y, loss, batch, len(X), print_metrics = True)
                     self.log_metrics(epoch, batch, len(X), loss, batch_count, class_count)
                     
-            total_batch_count, total_class_count, total_loss = self.test()
+            total_batch_count, total_class_count, total_loss, total_confusion_matrix = self.test()
             self.log_metrics(epoch, batch, len(X), total_loss, total_batch_count, total_class_count, log_suffix = "test")
+            self.log_plot(epoch, total_confusion_matrix)
         self.summary_writer.close()
         
     def train_step(self, train_data):
@@ -160,17 +194,19 @@ class Trainer:
         total_loss = 0
         total_batch_count = np.zeros((2))
         total_class_count = np.zeros((self.catagories, 2))
+        total_confusion_matrix = np.zeros((self.catagories, self.catagories))
             
         with torch.no_grad():
             for batch, (X, y) in enumerate(self.test_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
                 logits = self.model(X)
                 loss = self.model.loss_fn(logits, y).item()
-                batch_count, class_count = self.metrics(logits, y, loss, batch, len(X))
+                batch_count, class_count, confusion_matrix = self.calc_metrics(logits, y, loss, batch, len(X), calc_confuMatrix = True)
                 
                 total_batch_count += batch_count
                 total_class_count += class_count
                 total_loss += loss
+                total_confusion_matrix += confusion_matrix
                 
         total_loss /= self.test_batches
         total_acc =  percentageArr(total_batch_count[0], total_batch_count[1])
@@ -181,7 +217,7 @@ class Trainer:
             f"Avg loss: {loss:>8f}, "
             f"class_accuracy:[{total_class_acc}]\n"
         )
-        return total_batch_count, total_class_count, total_loss
+        return total_batch_count, total_class_count, total_loss, total_confusion_matrix
     
 def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") -> str:
     tb_log_dir_prefix = (
