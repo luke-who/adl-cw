@@ -76,7 +76,7 @@ class DCASE_clip(DCASE):
         if self.normData:
             spec = (spec - self.specs_mean)/self.specs_std
         #splitting spec
-        spec = super().__trim__(spec)
+        spec = super().__trim__(torch.from_numpy(spec))
         return np.expand_dims(spec[clip_offset], axis=0), label
         
     def __len__(self):
@@ -85,7 +85,7 @@ class DCASE_clip(DCASE):
     def get_spec_index(self, spec_index):
         filename, label = self._labels.iloc[spec_index]
         filepath = self._root_dir / 'audio' / filename
-        spec = torch.from_numpy(np.load(filepath))
+        spec = np.load(filepath)
         return spec, label
     
     def norm_data(self):
