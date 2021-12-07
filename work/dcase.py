@@ -256,8 +256,8 @@ def main(args):
     catagories = 15
 
     # Load datasets.
-    training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3)
-    test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3)
+    training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, normData = True)
+    test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
 
     # Create data loaders.
     train_dataloader = DataLoader(
