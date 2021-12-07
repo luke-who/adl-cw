@@ -70,14 +70,15 @@ class DCASE_clip(DCASE):
             else:    
                 self.norm_data()
     
-    def __getitem__(self, clip_index):
+    def __getitem__(self, clip_index, disableNorm = False):
         spec_index, clip_offset = divmod(clip_index, self._num_clips)
         spec, label = self.get_spec_index(spec_index)
-        if self.normData:
-            spec = (spec - self.specs_mean)/self.specs_std
         #splitting spec
         spec = super().__trim__(torch.from_numpy(spec))
-        return np.expand_dims(spec[clip_offset], axis=0), label
+        clip = spec[clip_offset]
+        if self.normData & (not disableNorm):
+            clip = (clip - self.specs_mean)/self.specs_std
+        return np.expand_dims(clip, axis=0), label
         
     def __len__(self):
         return self._data_len * self._num_clips
@@ -89,12 +90,13 @@ class DCASE_clip(DCASE):
         return spec, label
     
     def norm_data(self):
-        print(self._data_len)
         spec_shape = self.get_spec_index(0)[0].shape
+        time_steps = spec_shape[-1]
+        time_interval = int(time_steps // self._num_clips)
         print("Computing norm.")
-        specs = np.zeros((self._data_len, spec_shape[0], spec_shape[1]), dtype='f')
-        for i in range(0 ,self._data_len):
-            specs[i], _ =  self.get_spec_index(i)
+        specs = np.zeros((len(self), spec_shape[0], time_interval), dtype='f')
+        for i in range(0 , len(self)):
+            specs[i] =  self.__getitem__(i, disableNorm = True)[0][0]
         self.specs_mean = specs.mean(axis=0)
         self.specs_std = specs.std(axis=0)
         print("Done.")
