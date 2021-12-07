@@ -295,6 +295,6 @@ if __name__ == "__main__":
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
     parser.add_argument("--metric-frequency", default=1, type=int)
     parser.add_argument("--epochs", default=20, type=int)
-    parser.add_argument("--learning-rate", default=1e-4, type=float)
+    parser.add_argument("--learning-rate", default=5e-4, type=float)
     parser.add_argument("--dropout", default=0, type=float)
     main(parser.parse_args())
