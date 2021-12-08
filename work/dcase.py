@@ -107,9 +107,9 @@ class Trainer:
         ax.set_ylabel("True label.")
         for (i, j), z in np.ndenumerate(total_confusion_matrix):
             if z > midpoint:
-                ax.text(j, i, round(z), color='white', ha='center', va='center')
+                ax.text(j, i, "{:.0f}".format(z), color='white', ha='center', va='center')
             else:
-                ax.text(j, i, round(z), ha='center', va='center')
+                ax.text(j, i, "{:.0f}".format(z), ha='center', va='center')
         canvas = FigureCanvas(fig)
         canvas.draw()
         image = np.array(canvas.renderer.buffer_rgba())
