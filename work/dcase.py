@@ -180,10 +180,9 @@ class Trainer:
         loss = self.model.loss_fn(logits, y)
 
         # Backpropagation
-        loss.backward()
-        # Step the optimiser and then zero out the gradient buffers
-        self.model.optimizer.step()
         self.model.optimizer.zero_grad()
+        loss.backward()
+        self.model.optimizer.step()
         
         return logits, loss.item()
         
@@ -195,6 +194,24 @@ class Trainer:
         total_confusion_matrix = np.zeros((self.categories, self.categories))
             
         with torch.no_grad():
+            specs = self.test_dataloader.dataset._data_len
+            clips = self.test_dataloader.dataset._num_clips
+            clip_shape = self.test_dataloader.dataset[0][0].shape
+            inference_count = 0
+            for i in range(0, specs):
+                clip = np.empty((clips, clip_shape[0], clip_shape[1], clip_shape[2]), dtype="f")
+                label = self.test_dataloader.dataset[i*clips][1]
+                for j in range(0, clips):
+                    clip[j] = self.test_dataloader.dataset[i*clips + j][0]
+                clip = torch.tensor(clip).to(self.device)
+                logits = self.model(clip)
+                logits = logits.mean(dim=0)
+                inference = logits.argmax()
+                if inference == label:
+                    inference_count += 1
+            inference_acc = inference_count/specs
+            print(f"Inference Error: \n Accuracy: {inference_acc*100:>0.1f}%")
+            
             for batch, (X, y) in enumerate(self.test_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
                 logits = self.model(X)
@@ -256,8 +273,7 @@ def main(args):
     test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
 
     # Calculate total number of classes/categories
-    sample_classes = [training_data[i][1] for i in range(len(training_data))]
-    categories = len(np.unique(sample_classes))
+    categories = len(training_data.categories)
     print("Total number of classes/categories:",categories)
 
     # Create data loaders.
