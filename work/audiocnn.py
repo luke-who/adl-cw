@@ -8,7 +8,9 @@ class AudioCNN(nn.Module):
         args: argparse.Namespace, 
         categories: int, 
         in_channels: int=1
-    ):
+    ):  
+        self.loss_fn = None
+        self.optimizer = None
         super().__init__()
         self.cnn_neuro_stack = nn.Sequential(  
 
