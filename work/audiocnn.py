@@ -19,7 +19,7 @@ class AudioCNN(nn.Module):
             nn.MaxPool2d(kernel_size=(5, 5), stride=(5, 5)),
             # Max pooling reduces the resolution of the output of a given convolutional layer. Therefore it 
             # reduces the number of parameters in the network, this in turn reduces computational load, 
-            # it may also help to reduce overfitting as it'll extract&preserve the most important features/pixels
+            # it may also help to reduce overfitting as it'll extract&preserve the most important features
             nn.Conv2d(
                 in_channels=128,
                 out_channels=256,
