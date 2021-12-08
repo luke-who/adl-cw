@@ -224,8 +224,8 @@ def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") ->
         f"CNN_bn_"
         f"{args.prefix[1:-1]}"
         f"bs={args.batch_size}_"
-        f"lr={args.learning_rate}_"
-        f"dropout={args.dropout}_"
+        f"lr={args.learning_rate}_" +
+        (f"dropout={args.dropout}_" if args.dropout!=0 else "") +
         f"run_"
     )
     i = 0
@@ -259,7 +259,7 @@ def main(args):
 
     # Calculate total number of classes/categories
     sample_classes = [training_data[i][1] for i in range(len(training_data))]
-    categories = np.unique(sample_classes)
+    categories = len(np.unique(sample_classes))
     print("Total number of classes/categories:",categories)
 
     # Create data loaders.
