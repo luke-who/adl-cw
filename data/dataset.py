@@ -10,7 +10,7 @@ class DCASE(Dataset):
     def __init__(self, root_dir: str, clip_duration: int):
         self._root_dir = Path(root_dir)
         self._labels = pd.read_csv((self._root_dir / 'labels.csv'), names=['file', 'label'])
-        # print(self._labels.label.astype('category'))
+        self.categories = self._labels.label.astype('category').cat.categories
         self._labels['label'] = self._labels.label.astype('category').cat.codes.astype('int') #create categorical labels
         self._clip_duration = clip_duration
         self._total_duration = 30 #DCASE audio length is 30s
