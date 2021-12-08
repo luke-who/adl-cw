@@ -75,7 +75,7 @@ class DCASE_clip(DCASE):
         spec, label = self.get_spec_index(spec_index)
         #splitting spec
         spec = super().__trim__(torch.from_numpy(spec))
-        clip = spec[clip_offset]
+        clip = np.array(spec[clip_offset])
         if self.normData & (not disableNorm):
             clip = (clip - self.specs_mean)/self.specs_std
         return np.expand_dims(clip, axis=0), label
