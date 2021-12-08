@@ -79,6 +79,7 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+work/run_dcase_collab.ipynb
 
 # IPython
 profile_default/
