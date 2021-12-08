@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from typing import Tuple,Optional
 import torch
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
@@ -23,20 +24,40 @@ from data import dataset
 from audiocnn import AudioCNN
         
 class Trainer:
+    r"""Training class which contains train and test methods.
 
-    def __init__(self, model, dataLoaders, categories, args, device, summary_writer):
-        self.model = model
+    Args: 
+    """
+    def __init__(
+        self, 
+        model: nn.Module, 
+        dataLoaders: Tuple[DataLoader,DataLoader], 
+        categories: int, 
+        args: argparse.Namespace, 
+        device: torch.device, 
+        summary_writer: SummaryWriter
+    ):
+        self.model = model.to(device)
         self.train_dataloader, self.test_dataloader = dataLoaders
-        self.train_set_size = len(self.train_dataloader.dataset)
-        self.train_batches = len(self.train_dataloader)
-        self.test_set_size = len(self.test_dataloader.dataset)
-        self.test_batches = len(self.test_dataloader)
-        self.categories = categories
+        self.train_set_size = len(self.train_dataloader.dataset) # total number of datapoints in train set/development folder
+        self.train_batches = len(self.train_dataloader) # number of batches in train set
+        self.test_set_size = len(self.test_dataloader.dataset) # total number of datapoints in test set/evaluation folder
+        self.test_batches = len(self.test_dataloader) # number of batches in test set
+        self.categories = categories # number of classes/categories
         self.args = args
         self.device = device
         self.summary_writer = summary_writer
         
-    def calc_metrics(self, logits, labels, loss, batch, current_bsize, print_metrics = False, calc_confuMatrix = False):
+    def calc_metrics(
+        self, 
+        logits: torch.Tensor, # prediction/output
+        labels: torch.Tensor, 
+        loss: float, 
+        batch: int, 
+        current_bsize: int, 
+        print_metrics: Optional[bool] = False, 
+        calc_confuMatrix: Optional[bool] = False
+    ):
         batch_size = logits.shape[0]
         categories = logits.shape[1]
         batch_count = (logits.argmax(dim=1) == labels).sum()
@@ -75,7 +96,16 @@ class Trainer:
             )
         return np.array([batch_count.item(), batch_size]), np.array(class_count), confusion_matrix
         
-    def log_metrics(self, epoch, batch, current_bsize, loss, count, class_count , log_suffix = "train"):
+    def log_metrics(
+        self, 
+        epoch: int, 
+        batch: int, 
+        current_bsize: int, 
+        loss: float, 
+        count: int, 
+        class_count: int, 
+        log_suffix: str = "train"
+    ):
         steps = epoch * self.train_set_size + batch * self.args.batch_size + current_bsize
         self.summary_writer.add_scalar("epoch", epoch, steps)
         self.summary_writer.add_scalars(
@@ -120,13 +150,14 @@ class Trainer:
         
     def train(self):        
         for epoch in range(self.args.epochs):
-            print(f"Epoch {epoch+1}/{self.args.epochs}\n-------------------------------")
+            print(f"Epoch {epoch+1}/{self.args.epochs}")
+            print("-------------------------------------------------------------")
             self.model.train()
             
             for batch, (X, y) in enumerate(self.train_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
                 logits, loss = self.train_step((X, y))
-                
+
                 if batch % self.args.metric_frequency == 0:
                     batch_count, class_count, _ = self.calc_metrics(logits, y, loss, batch, len(X), print_metrics = True)
                     self.log_metrics(epoch, batch, len(X), loss, batch_count, class_count)
@@ -136,7 +167,12 @@ class Trainer:
             self.log_plot(epoch, total_confusion_matrix)
         self.summary_writer.close()
         
-    def train_step(self, train_data):
+    def train_step(self, train_data: Dataset):
+        r"""Train data with forward and backward propagation.
+
+        Args:
+            train_data (Dataset): train dataset.
+        """
         (X, y) = train_data
         
         # Compute prediction error
@@ -144,9 +180,10 @@ class Trainer:
         loss = self.model.loss_fn(logits, y)
 
         # Backpropagation
-        self.model.optimizer.zero_grad()
         loss.backward()
+        # Step the optimiser and then zero out the gradient buffers
         self.model.optimizer.step()
+        self.model.optimizer.zero_grad()
         
         return logits, loss.item()
         
@@ -236,7 +273,7 @@ def main(args):
         shuffle=True,
         pin_memory=True
     )
-    model = AudioCNN(args, categories = categories, in_channels = 1).to(device)
+    model = AudioCNN(args, categories = categories, in_channels = 1)
     
     model.loss_fn = nn.CrossEntropyLoss()
     model.optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
