@@ -219,11 +219,9 @@ def main(args):
     test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
 
     # Calculate total number of classes/categories
-    # train_data = dataset.DCASE(Path(args.dataset_root) / "development",3)
-    # sample_classes = [train_data[i][1] for i in range(len(train_data))]
-    # categories = len(np.unique(sample_classes))
-    categories = 15
-    # print("Total number of classes/categories:",categories)
+    sample_classes = [training_data[i][1] for i in range(len(training_data))]
+    categories = len(np.unique(sample_classes))
+    print("Total number of classes/categories:",categories)
 
     # Create data loaders.
     train_dataloader = DataLoader(
@@ -257,7 +255,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--prefix", default="", type=ascii)
     parser.add_argument("--batch-size", default=64, type=int)
-    parser.add_argument("--dataset-root", default="../data/ADL_DCASE_DATA")
+    parser.add_argument("--dataset-root", default="/content/drive/MyDrive/Colab Notebooks/adl-cw/data/ADL_DCASE_DATA")
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
     parser.add_argument("--metric-frequency", default=1, type=int)
     parser.add_argument("--epochs", default=20, type=int)
