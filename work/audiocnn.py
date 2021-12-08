@@ -11,11 +11,15 @@ class AudioCNN(nn.Module):
                 out_channels=128,
                 kernel_size=(5, 5),
                 padding=(2, 2),
+                # padding preserves the image size after convolution
             ),
             nn.BatchNorm2d(128),
+            # batch normalisation make sure inputs & weights don't become exetremely imbalanced
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=(5, 5), stride=(5, 5)),
-            
+            # Max pooling reduces the resolution of the output of a given convolutional layer. Therefore it 
+            # reduces the number of parameters in the network, this in turn reduces computational load, 
+            # it may also help to reduce overfitting as it'll extract&preserve the most important features/pixels
             nn.Conv2d(
                 in_channels=128,
                 out_channels=256,
