@@ -22,7 +22,7 @@ sys.path.append(parentdir)
 from data import dataset
 
 class AudioCNN(nn.Module):
-    def __init__(self, args, catagories, in_channels=1):
+    def __init__(self, args, categories, in_channels=1):
         super().__init__()
         self.cnn_neuro_stack = nn.Sequential(
             
@@ -54,7 +54,7 @@ class AudioCNN(nn.Module):
             # nn.ReLU(),
             
             nn.Dropout(p=args.dropout),
-            nn.Linear(3072, catagories)
+            nn.Linear(3072, categories)
         )
 
     def forward(self, x):
@@ -63,32 +63,32 @@ class AudioCNN(nn.Module):
         
 class Trainer:
 
-    def __init__(self, model, dataLoaders, catagories, args, device, summary_writer):
+    def __init__(self, model, dataLoaders, categories, args, device, summary_writer):
         self.model = model
         self.train_dataloader, self.test_dataloader = dataLoaders
         self.train_set_size = len(self.train_dataloader.dataset)
         self.train_batches = len(self.train_dataloader)
         self.test_set_size = len(self.test_dataloader.dataset)
         self.test_batches = len(self.test_dataloader)
-        self.catagories = catagories
+        self.categories = categories
         self.args = args
         self.device = device
         self.summary_writer = summary_writer
         
     def calc_metrics(self, logits, labels, loss, batch, current_bsize, print_metrics = False, calc_confuMatrix = False):
         batch_size = logits.shape[0]
-        catagories = logits.shape[1]
+        categories = logits.shape[1]
         batch_count = (logits.argmax(dim=1) == labels).sum()
         batch_accuracy = batch_count.item()/batch_size
         class_accuracy = []
         class_count = []
-        confusion_matrix = np.zeros((catagories, catagories))
+        confusion_matrix = np.zeros((categories, categories))
         
-        for i in range(catagories):
+        for i in range(categories):
             preds = logits.argmax(dim=1)
             matched_labels = labels == i
             if calc_confuMatrix:
-                for j in range(catagories):
+                for j in range(categories):
                     matched_preds = preds == j
                     confusion_matrix[j,i] = (matched_preds & matched_labels).sum().item()
             
@@ -138,8 +138,8 @@ class Trainer:
 
         fig, ax = plt.subplots(figsize=(8,8))
         ax.matshow(total_confusion_matrix, cmap='Greens')
-        ax.set_xticks(range(self.catagories))
-        ax.set_yticks(range(self.catagories))
+        ax.set_xticks(range(self.categories))
+        ax.set_yticks(range(self.categories))
         # ax.set_xticklabels([])
         ax.set_xlabel("Predicted label.")
         # ax.set_yticklabels([])
@@ -193,8 +193,8 @@ class Trainer:
         self.model.eval()
         total_loss = 0
         total_batch_count = np.zeros((2))
-        total_class_count = np.zeros((self.catagories, 2))
-        total_confusion_matrix = np.zeros((self.catagories, self.catagories))
+        total_class_count = np.zeros((self.categories, 2))
+        total_confusion_matrix = np.zeros((self.categories, self.categories))
             
         with torch.no_grad():
             for batch, (X, y) in enumerate(self.test_dataloader):
@@ -253,11 +253,14 @@ def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device.")      
 
-    catagories = 15
-
     # Load datasets.
     training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, normData = True)
     test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
+
+    # Calculate total number of classes/categories
+    sample_classes = [training_data[i][1] for i in range(len(training_data))]
+    categories = np.unique(sample_classes)
+    print("Total number of classes/categories:",categories)
 
     # Create data loaders.
     train_dataloader = DataLoader(
@@ -272,7 +275,7 @@ def main(args):
         shuffle=True,
         pin_memory=True
     )
-    model = AudioCNN(args, catagories = catagories, in_channels = 1).to(device)
+    model = AudioCNN(args, categories = categories, in_channels = 1).to(device)
     
     model.loss_fn = nn.CrossEntropyLoss()
     model.optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
@@ -283,7 +286,7 @@ def main(args):
             flush_secs=5
     )
     
-    trainer = Trainer(model, (train_dataloader, test_dataloader), catagories, args, device, summary_writer)
+    trainer = Trainer(model, (train_dataloader, test_dataloader), categories, args, device, summary_writer)
     trainer.train()
     print("Done!")
     
