@@ -20,46 +20,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 # Now we can import the module from the parent directory.
 from data import dataset
-
-class AudioCNN(nn.Module):
-    def __init__(self, args, categories, in_channels=1):
-        super().__init__()
-        self.cnn_neuro_stack = nn.Sequential(
-            
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=128,
-                kernel_size=(5, 5),
-                padding=(2, 2),
-            ),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(5, 5), stride=(5, 5)),
-            
-            nn.Conv2d(
-                in_channels=128,
-                out_channels=256,
-                kernel_size=(5, 5),
-                padding=(2, 2),
-            ),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(5, 5), stride=(5, 5)),
-            
-            
-            nn.Flatten(),
-            # nn.Dropout(p=args.dropout),
-            # nn.Linear(3072,1000),
-            # nn.BatchNorm1d(1000),
-            # nn.ReLU(),
-            
-            nn.Dropout(p=args.dropout),
-            nn.Linear(3072, categories)
-        )
-
-    def forward(self, x):
-        logits = self.cnn_neuro_stack(x)
-        return logits
+from audiocnn import AudioCNN
         
 class Trainer:
 
@@ -294,7 +255,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--prefix", default="", type=ascii)
     parser.add_argument("--batch-size", default=64, type=int)
-    parser.add_argument("--dataset-root", default="../data/ADL_DCASE_DATA")
+    parser.add_argument("--dataset-root", default="/content/drive/MyDrive/Colab Notebooks/adl-cw/data/ADL_DCASE_DATA")
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
     parser.add_argument("--metric-frequency", default=1, type=int)
     parser.add_argument("--epochs", default=20, type=int)
