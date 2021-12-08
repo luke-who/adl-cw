@@ -219,10 +219,11 @@ def main(args):
     test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
 
     # Calculate total number of classes/categories
-    train_data = dataset.DCASE(Path(args.dataset_root) / "development",3)
-    sample_classes = [train_data[i][1] for i in range(len(train_data))]
-    categories = len(np.unique(sample_classes))
-    print("Total number of classes/categories:",categories)
+    # train_data = dataset.DCASE(Path(args.dataset_root) / "development",3)
+    # sample_classes = [train_data[i][1] for i in range(len(train_data))]
+    # categories = len(np.unique(sample_classes))
+    categories = 15
+    # print("Total number of classes/categories:",categories)
 
     # Create data loaders.
     train_dataloader = DataLoader(
