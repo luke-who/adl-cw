@@ -156,7 +156,7 @@ class Trainer:
             
             for batch, (X, y) in enumerate(self.train_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
-                logits, loss = self.train_step((X, y))
+                logits, loss = self.train_step((X, y)) # X is the feature, y is the the true label
 
                 if batch % self.args.metric_frequency == 0:
                     batch_count, class_count, _ = self.calc_metrics(logits, y, loss, batch, len(X), print_metrics = True)
