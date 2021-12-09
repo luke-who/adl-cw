@@ -5,6 +5,7 @@ from torchvision import transforms
 import numpy as np
 from pathlib import Path
 import pandas as pd
+import copy
 
 class DCASE(Dataset):
     def __init__(self, root_dir: str, clip_duration: int):
@@ -104,5 +105,19 @@ class DCASE_clip(DCASE):
         
     def prior_norm(self):
         return self.specs_mean, self.specs_std
+        
+    def split(self, train_rat = 0.7):
+        train_specs = int(train_rat*self._data_len)
+        test_specs = self._data_len - train_specs
+        
+        train_split, test_split = copy.deepcopy(self), copy.deepcopy(self)
+        
+        train_split._labels = self._labels.iloc[0 : train_specs]
+        train_split._data_len = train_specs
+        
+        test_split._labels = self._labels.iloc[train_specs : train_specs + test_specs]
+        test_split._data_len = test_specs
+
+        return train_split, test_split
         
         

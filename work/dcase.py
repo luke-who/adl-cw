@@ -162,7 +162,7 @@ class Trainer:
                     batch_count, class_count, _ = self.calc_metrics(logits, y, loss, batch, len(X), print_metrics = True)
                     self.log_metrics(epoch, batch, len(X), loss, batch_count, class_count)
                     
-            total_batch_count, total_class_count, total_loss, total_confusion_matrix = self.test()
+            total_batch_count, total_class_count, total_loss, total_confusion_matrix = self.test(self.test_dataloader)
             self.log_metrics(epoch, batch, len(X), total_loss, total_batch_count, total_class_count, log_suffix = "test")
             self.log_plot(epoch, total_confusion_matrix)
         self.summary_writer.close()
@@ -186,15 +186,15 @@ class Trainer:
         
         return logits, loss.item()
         
-    def test(self):
+    def test(self, test_dataloader):
         self.model.eval()
-        batches = self.test_batches
-        clips = self.test_dataloader.dataset._num_clips
+        batches = len(test_dataloader)
+        clips = test_dataloader.dataset._num_clips
         batch_logits = torch.zeros([batches, self.categories])
         batch_labels = torch.zeros([batches], dtype = torch.long)
         loss = 0
         with torch.no_grad():
-            for batch, (X, y) in enumerate(self.test_dataloader):
+            for batch, (X, y) in enumerate(test_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
                 
                 logits = self.model(X)
@@ -202,7 +202,7 @@ class Trainer:
                 batch_logits[batch] = logits.mean(dim=0)
                 batch_labels[batch] = y[0]
             loss /= batches
-            total_batch_count, total_class_count, total_confusion_matrix = self.calc_metrics(batch_logits, batch_labels, loss, 0, clips, calc_confuMatrix = True)
+            total_batch_count, total_class_count, total_confusion_matrix = self.calc_metrics(batch_logits, batch_labels, loss, 0, batches, calc_confuMatrix = True)
             
         total_acc =  percentageArr(total_batch_count[0], total_batch_count[1])
         total_class_acc = percentageArr(total_class_count[:,0], total_class_count[:,1])
