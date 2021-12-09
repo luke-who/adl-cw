@@ -250,6 +250,7 @@ def main(args):
 
     # Load datasets.
     training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, normData = True)
+    train_split, valid_split = training_data.split()
     test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
 
     # Calculate total number of classes/categories
