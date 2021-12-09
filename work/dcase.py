@@ -244,14 +244,26 @@ def percentageArr(count, max):
         return 100
 percentageArr = np.vectorize(percentageArr)
     
+def non_full_training(args):
+    training_data, _ = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, normData = True).split()
+    _, test_data = dataset.DCASE_clip(Path(args.dataset_root) / "development" , 3, normData = True, priorNorm = training_data.prior_norm()).split()
+
+    return training_data, test_data
+
+def full_training(args):
+    training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, normData = True)
+    test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
+    
+    return training_data, test_data
+    
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device.")      
 
     # Load datasets.
-    training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, normData = True)
-    test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
-
+    training_data, test_data = non_full_training(args)
+    # training_data, test_data = full_training(args)
+    
     # Calculate total number of classes/categories
     categories = len(training_data.categories)
     print("Total number of classes/categories:",categories)
@@ -288,7 +300,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--prefix", default="", type=ascii)
     parser.add_argument("--batch-size", default=64, type=int)
-    parser.add_argument("--dataset-root", default="../data/ADL_DCASE_DATA")
+    parser.add_argument("--dataset-root", default="/content/drive/MyDrive/Colab Notebooks/adl-cw/data/ADL_DCASE_DATA")
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
     parser.add_argument("--metric-frequency", default=1, type=int)
     parser.add_argument("--epochs", default=20, type=int)
