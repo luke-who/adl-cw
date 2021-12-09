@@ -191,7 +191,7 @@ class Trainer:
         batches = self.test_batches
         clips = self.test_dataloader.dataset._num_clips
         batch_logits = torch.zeros([batches, self.categories])
-        batch_labels = torch.zeros([batches])
+        batch_labels = torch.zeros([batches], dtype = torch.long)
         loss = 0
         with torch.no_grad():
             for batch, (X, y) in enumerate(self.test_dataloader):
