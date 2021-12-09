@@ -300,7 +300,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--prefix", default="", type=ascii)
     parser.add_argument("--batch-size", default=64, type=int)
-    parser.add_argument("--dataset-root", default="/content/drive/MyDrive/Colab Notebooks/adl-cw/data/ADL_DCASE_DATA")
+    parser.add_argument("--dataset-root", default="../data/ADL_DCASE_DATA")
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
     parser.add_argument("--metric-frequency", default=1, type=int)
     parser.add_argument("--epochs", default=20, type=int)
