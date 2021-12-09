@@ -38,7 +38,7 @@ class Trainer:
         summary_writer: SummaryWriter
     ):
         self.model = model.to(device)
-        self.train_dataloader, self.test_dataloader = dataLoaders
+        self.train_dataloader, self.train_split_dataloader, self.valid_split_dataloader, self.test_dataloader = dataLoaders
         self.train_set_size = len(self.train_dataloader.dataset) # total number of datapoints in train set/development folder
         self.train_batches = len(self.train_dataloader) # number of batches in train set
         self.test_set_size = len(self.test_dataloader.dataset) # total number of datapoints in test set/evaluation folder
@@ -148,22 +148,31 @@ class Trainer:
         image = image[:,:,0:3]
         self.summary_writer.add_image('confusion_matrix', image, epoch, dataformats='HWC')
         
-    def train(self):        
-        for epoch in range(self.args.epochs):
+    def training_loop(self):
+        self.nonfull_training()
+        self.full_training(self.args.epochs)
+        
+    def nonfull_training(self):
+        print("Non-full training.")
+        
+    def full_training(self, epochs):
+        print("Full training for " + str(epochs) + " epochs.")
+        self.test(self.test_dataloader)
+        for epoch in range(epochs):
             print(f"Epoch {epoch+1}/{self.args.epochs}")
             print("-------------------------------------------------------------")
             self.model.train()
             
             for batch, (X, y) in enumerate(self.train_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
+                current_bsize = len(X)
                 logits, loss = self.train_step((X, y)) # X is the feature, y is the the true label
 
                 if batch % self.args.metric_frequency == 0:
-                    batch_count, class_count, _ = self.calc_metrics(logits, y, loss, batch, len(X), print_metrics = True)
-                    self.log_metrics(epoch, batch, len(X), loss, batch_count, class_count)
-                    
+                    batch_count, class_count, _ = self.calc_metrics(logits, y, loss, batch, current_bsize, print_metrics = True)
+                    self.log_metrics(epoch, batch, current_bsize, loss, batch_count, class_count)
             total_batch_count, total_class_count, total_loss, total_confusion_matrix = self.test(self.test_dataloader)
-            self.log_metrics(epoch, batch, len(X), total_loss, total_batch_count, total_class_count, log_suffix = "test")
+            self.log_metrics(epoch, batch, current_bsize, total_loss, total_batch_count, total_class_count, log_suffix = "test")
             self.log_plot(epoch, total_confusion_matrix)
         self.summary_writer.close()
         
@@ -258,15 +267,29 @@ def main(args):
     print("Total number of classes/categories:",categories)
 
     # Create data loaders.
+    # Training dataloaders
     train_dataloader = DataLoader(
         training_data, 
         batch_size=args.batch_size,
         shuffle=True,
         pin_memory=True
     )
+    train_split_dataloader = DataLoader(
+        train_split, 
+        batch_size=args.batch_size,
+        shuffle=True,
+        pin_memory=True
+    )
+    # Verification dataloaders
+    valid_split_dataloader = DataLoader(
+        valid_split, 
+        batch_size = valid_split._num_clips,
+        shuffle=False,
+        pin_memory=True
+    )
     test_dataloader = DataLoader(
         test_data, 
-        batch_size = training_data._num_clips,
+        batch_size = test_data._num_clips,
         shuffle=False,
         pin_memory=True
     )
@@ -280,9 +303,9 @@ def main(args):
             str(log_dir),
             flush_secs=5
     )
-    
-    trainer = Trainer(model, (train_dataloader, test_dataloader), categories, args, device, summary_writer)
-    trainer.train()
+    dataLoaders = train_dataloader, train_split_dataloader, valid_split_dataloader, test_dataloader
+    trainer = Trainer(model, dataLoaders, categories, args, device, summary_writer)
+    trainer.training_loop()
     print("Done!")
     
 if __name__ == "__main__":
