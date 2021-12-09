@@ -188,42 +188,22 @@ class Trainer:
         
     def test(self):
         self.model.eval()
-        total_loss = 0
-        total_batch_count = np.zeros((2))
-        total_class_count = np.zeros((self.categories, 2))
-        total_confusion_matrix = np.zeros((self.categories, self.categories))
-            
+        batches = self.test_batches
+        clips = self.test_dataloader.dataset._num_clips
+        batch_logits = torch.zeros([batches, self.categories])
+        batch_labels = torch.zeros([batches])
+        loss = 0
         with torch.no_grad():
-            specs = self.test_dataloader.dataset._data_len
-            clips = self.test_dataloader.dataset._num_clips
-            clip_shape = self.test_dataloader.dataset[0][0].shape
-            inference_count = 0
-            for i in range(0, specs):
-                clip = np.empty((clips, clip_shape[0], clip_shape[1], clip_shape[2]), dtype="f")
-                label = self.test_dataloader.dataset[i*clips][1]
-                for j in range(0, clips):
-                    clip[j] = self.test_dataloader.dataset[i*clips + j][0]
-                clip = torch.tensor(clip).to(self.device)
-                logits = self.model(clip)
-                logits = logits.mean(dim=0)
-                inference = logits.argmax()
-                if inference == label:
-                    inference_count += 1
-            inference_acc = inference_count/specs
-            print(f"Inference Error: \n Accuracy: {inference_acc*100:>0.1f}%")
-            
             for batch, (X, y) in enumerate(self.test_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
+                
                 logits = self.model(X)
-                loss = self.model.loss_fn(logits, y).item()
-                batch_count, class_count, confusion_matrix = self.calc_metrics(logits, y, loss, batch, len(X), calc_confuMatrix = True)
-                
-                total_batch_count += batch_count
-                total_class_count += class_count
-                total_loss += loss
-                total_confusion_matrix += confusion_matrix
-                
-        total_loss /= self.test_batches
+                loss += self.model.loss_fn(logits, y).item()
+                batch_logits[batch] = logits.mean(dim=0)
+                batch_labels[batch] = y[0]
+            loss /= batches
+            total_batch_count, total_class_count, total_confusion_matrix = self.calc_metrics(batch_logits, batch_labels, loss, 0, clips, calc_confuMatrix = True)
+            
         total_acc =  percentageArr(total_batch_count[0], total_batch_count[1])
         total_class_acc = percentageArr(total_class_count[:,0], total_class_count[:,1])
         total_class_acc = formatCAList(total_class_acc)
@@ -232,7 +212,7 @@ class Trainer:
             f"Avg loss: {loss:>8f}, "
             f"class_accuracy:[{total_class_acc}]\n"
         )
-        return total_batch_count, total_class_count, total_loss, total_confusion_matrix
+        return total_batch_count, total_class_count, loss, total_confusion_matrix
     
 def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") -> str:
     tb_log_dir_prefix = (
@@ -285,8 +265,8 @@ def main(args):
     )
     test_dataloader = DataLoader(
         test_data, 
-        batch_size=args.batch_size,
-        shuffle=True,
+        batch_size = training_data._num_clips,
+        shuffle=False,
         pin_memory=True
     )
     model = AudioCNN(args, categories = categories, in_channels = 1)
