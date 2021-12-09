@@ -244,6 +244,18 @@ def percentageArr(count, max):
         return 100
 percentageArr = np.vectorize(percentageArr)
     
+def non_full_training(args):
+    training_data, _ = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, normData = True).split()
+    _, test_data = dataset.DCASE_clip(Path(args.dataset_root) / "development" , 3, normData = True, priorNorm = training_data.prior_norm()).split()
+
+    return training_data, test_data
+
+def full_training(args):
+    training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, normData = True)
+    test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
+    
+    return training_data, test_data
+    
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device.")      
