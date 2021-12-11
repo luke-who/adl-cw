@@ -106,16 +106,21 @@ class DCASE_clip(DCASE):
     def prior_norm(self):
         return self.specs_mean, self.specs_std
         
-    def split(self, train_rat = 0.7):
+    def split(self, train_rat = 0.7, shuffle = True):
         train_specs = int(train_rat*self._data_len)
         test_specs = self._data_len - train_specs
         
         train_split, test_split = copy.deepcopy(self), copy.deepcopy(self)
         
-        train_split._labels = self._labels.iloc[0 : train_specs]
+        if shuffle:
+            dataset_files = self._labels.sample(frac=1).reset_index(drop=True)
+        else:
+            dataset_files = self._labels
+        
+        train_split._labels = dataset_files.iloc[0 : train_specs]
         train_split._data_len = train_specs
         
-        test_split._labels = self._labels.iloc[train_specs : train_specs + test_specs]
+        test_split._labels = dataset_files.iloc[train_specs : train_specs + test_specs]
         test_split._data_len = test_specs
 
         return train_split, test_split

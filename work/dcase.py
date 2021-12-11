@@ -186,7 +186,6 @@ class Trainer:
                         print("worsen_streak = {worsen_streak}, terminating non-full training.")
                         break
             self.test(self.test_dataloader, epoch, step, log_suffix = "nonfull_test")
-        print("Epoch limit reached.")
         
     def full_training(self, epochs):
         print("Full training for " + str(epochs) + " epochs.")
