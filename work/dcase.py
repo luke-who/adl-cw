@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import pandas as pd
 from pathlib import Path
-import os,sys
+import os,sys,copy
 
 #******* Setting path for importing data from parent directory*******#
 # Getting the name of the directory where the this file is present.
@@ -151,12 +151,46 @@ class Trainer:
         self.full_training(self.args.epochs)
         self.summary_writer.close()
         
-    def nonfull_training(self):
+    def nonfull_training(self, epoch_limit=200):
         print("Non-full training.")
+        best_valid_acc = self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_valid")
+        best_model = copy.deepcopy(self.model)
+        worsen_streak = 0
+        for epoch in range(0, epoch_limit):
+            print(f"Epoch {epoch+1}/{epoch_limit}")
+            print("-------------------------------------------------------------")
+            self.model.train()
+            
+            for batch, (X, y) in enumerate(self.train_split_dataloader):
+                X, y = X.to(self.device), y.to(self.device)
+                current_bsize = len(X)
+                step = epoch * len(self.train_split_dataloader) + batch
+                logits, loss = self.train_step((X, y)) # X is the feature, y is the the true label
+
+                if batch % self.args.metric_frequency == 0:
+                    count, class_count, _ = self.calc_metrics(logits, y, loss, batch, current_bsize, print_metrics = True)
+                    self.log_metrics(epoch, step, loss, count, class_count, log_suffix = "nonfull_train")
+            
+            if epoch % 5 == 0:
+                current_valid_acc = self.test(self.valid_split_dataloader, epoch, step, log_suffix = "nonfull_validation")      
+                if current_valid_acc > best_valid_acc:
+                    print("Current model better, updating.")
+                    best_model = copy.deepcopy(self.model)
+                    best_valid_acc = current_valid_acc
+                    worsen_streak = 0
+                else:
+                    print(f"Current model worse, regressing (worsen_streak={worsen_streak}).")
+                    self.model = best_model
+                    worsen_streak += 1
+                    if worsen_streak >= 20:
+                        print("worsen_streak = {worsen_streak}, terminating non-full training.")
+                        break
+            self.test(self.test_dataloader, epoch, step, log_suffix = "nonfull_test")
+        print("Epoch limit reached.")
         
     def full_training(self, epochs):
         print("Full training for " + str(epochs) + " epochs.")
-        self.test(self.test_dataloader)
+        self.test(self.test_dataloader, 0, 0, log_suffix = "full_valid")
         for epoch in range(epochs):
             print(f"Epoch {epoch+1}/{self.args.epochs}")
             print("-------------------------------------------------------------")
@@ -165,13 +199,13 @@ class Trainer:
             for batch, (X, y) in enumerate(self.train_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
                 current_bsize = len(X)
-                step = epoch * self.train_batches + batch
+                step = epoch * len(self.train_dataloader) + batch
                 logits, loss = self.train_step((X, y)) # X is the feature, y is the the true label
 
                 if batch % self.args.metric_frequency == 0:
                     count, class_count, _ = self.calc_metrics(logits, y, loss, batch, current_bsize, print_metrics = True)
-                    self.log_metrics(epoch, step, loss, count, class_count, log_suffix = "train")
-            self.test(self.test_dataloader, epoch, step, log_suffix = "test")
+                    self.log_metrics(epoch, step, loss, count, class_count, log_suffix = "full_train")
+            self.test(self.test_dataloader, epoch, step, log_suffix = "full_test")
         
     def train_step(self, train_data: Dataset):
         r"""Train data with forward and backward propagation.
@@ -193,6 +227,7 @@ class Trainer:
         return logits, loss.item()
         
     def test(self, test_dataloader, epoch=0, step=0, log_suffix = "test"):
+        print("Evaluating model for " + log_suffix + " metrics.")
         self.model.eval()
         batches = len(test_dataloader)
         clips = test_dataloader.dataset._num_clips
@@ -214,12 +249,13 @@ class Trainer:
         total_class_acc = percentageArr(total_class_count[:,0], total_class_count[:,1])
         total_class_acc = formatCAList(total_class_acc)
         print(
-            f"Test Error: \n Accuracy: {(total_acc):>0.1f}%, "
+            f"{log_suffix} Error: \n Accuracy: {(total_acc):>0.1f}%, "
             f"Avg loss: {loss:>8f}, "
             f"class_accuracy:[{total_class_acc}]\n"
         )
         self.log_metrics(epoch, step, loss, total_count, total_class_count, log_suffix = log_suffix)
         self.log_plot(epoch, total_confusion_matrix, log_suffix = log_suffix)
+        return total_acc
     
 def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") -> str:
     tb_log_dir_prefix = (
