@@ -60,9 +60,13 @@ class DCASE(Dataset):
 
 class DCASE_clip(DCASE):
     
-    def __init__(self, root_dir: str, clip_duration: int, normData = False, priorNorm = None):
+    def __init__(self, root_dir: str, clip_duration: int, offSet = False, normData = False, priorNorm = None):
         super().__init__(root_dir, clip_duration)
         self._num_clips = self._total_duration // self._clip_duration
+        self.spec_shape = self.get_spec_index(0)[0].shape
+        time_steps = self.spec_shape[-1]
+        self.time_interval = int(time_steps // self._num_clips)
+        self.offSet = offSet
         self.normData = normData
         if self.normData:
             if priorNorm is not None:
@@ -71,14 +75,28 @@ class DCASE_clip(DCASE):
             else:    
                 self.norm_data()
     
-    def __getitem__(self, clip_index, disableNorm = False):
+    def __getitem__(self, clip_index, disableNorm = False, disableOffset = False):
         spec_index, clip_offset = divmod(clip_index, self._num_clips)
         spec, label = self.get_spec_index(spec_index)
+        if self.offSet & (not disableOffset):
+            if clip_offset == 0:
+                leftLim = 0
+            else:
+                leftLim = int(-self.time_interval/2)
+            if clip_offset == self._num_clips - 1:
+                rightLim = 0
+            else:
+                rightLim = int(self.time_interval/2)
+            offSet = int(np.random.uniform(leftLim, rightLim))
+            spec = np.roll(spec, -offSet, axis = -1)
         #splitting spec
         spec = super().__trim__(torch.from_numpy(spec))
         clip = np.array(spec[clip_offset])
         if self.normData & (not disableNorm):
-            clip = (clip - self.specs_mean)/self.specs_std
+            if self.offSet & (not disableOffset):
+                clip = (clip - np.roll(self.specs_mean, -offSet, axis = -1))/np.roll(self.specs_std, -offSet, axis = -1)
+            else:
+                clip = (clip - self.specs_mean)/self.specs_std
         return np.expand_dims(clip, axis=0), label
         
     def __len__(self):
@@ -91,13 +109,10 @@ class DCASE_clip(DCASE):
         return spec, label
     
     def norm_data(self):
-        spec_shape = self.get_spec_index(0)[0].shape
-        time_steps = spec_shape[-1]
-        time_interval = int(time_steps // self._num_clips)
         print("Computing norm.")
-        specs = np.zeros((len(self), spec_shape[0], time_interval), dtype='f')
+        specs = np.zeros((len(self), self.spec_shape[0], self.time_interval), dtype='f')
         for i in range(0 , len(self)):
-            specs[i] =  self.__getitem__(i, disableNorm = True)[0][0]
+            specs[i] =  self.__getitem__(i, disableNorm = True, disableOffset = True)[0][0]
         self.specs_mean = specs.mean(axis=0)
         self.specs_std = specs.std(axis=0)
         print("Done.")
