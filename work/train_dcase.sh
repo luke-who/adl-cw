@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --partition gpu
-#SBATCH --time 0-01:30
+#SBATCH --time 0-02:00
 #SBATCH --account comsm0045
 ##SBATCH --reservation=comsm0045-coursework
 #SBATCH --mem 64GB
