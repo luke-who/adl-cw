@@ -2,7 +2,7 @@
 #SBATCH --partition gpu
 #SBATCH --time 0-01:30
 #SBATCH --account comsm0045
-#SBATCH --reservation=comsm0045-coursework
+##SBATCH --reservation=comsm0045-coursework
 #SBATCH --mem 64GB
 #SBATCH --gres gpu:1
 
