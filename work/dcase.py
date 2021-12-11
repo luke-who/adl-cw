@@ -151,9 +151,9 @@ class Trainer:
         self.full_training(self.args.epochs)
         self.summary_writer.close()
         
-    def nonfull_training(self, epoch_limit=200):
+    def nonfull_training(self, valid_freq = 1, max_worsen_streak = 5, epoch_limit=200):
         print("Non-full training.")
-        best_valid_acc = self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_valid")
+        best_valid_acc = self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_validation")
         best_model = copy.deepcopy(self.model)
         worsen_streak = 0
         for epoch in range(0, epoch_limit):
@@ -171,7 +171,7 @@ class Trainer:
                     count, class_count, _ = self.calc_metrics(logits, y, loss, batch, current_bsize, print_metrics = True)
                     self.log_metrics(epoch, step, loss, count, class_count, log_suffix = "nonfull_train")
             
-            if epoch % 5 == 0:
+            if epoch % valid_freq == 0:
                 current_valid_acc = self.test(self.valid_split_dataloader, epoch, step, log_suffix = "nonfull_validation")      
                 if current_valid_acc > best_valid_acc:
                     print("Current model better, updating.")
@@ -182,14 +182,14 @@ class Trainer:
                     print(f"Current model worse, regressing (worsen_streak={worsen_streak}).")
                     self.model = best_model
                     worsen_streak += 1
-                    if worsen_streak >= 20:
-                        print("worsen_streak = {worsen_streak}, terminating non-full training.")
+                    if worsen_streak >= max_worsen_streak:
+                        print(f"worsen_streak = {worsen_streak}, terminating non-full training.")
                         break
             self.test(self.test_dataloader, epoch, step, log_suffix = "nonfull_test")
         
     def full_training(self, epochs):
         print("Full training for " + str(epochs) + " epochs.")
-        self.test(self.test_dataloader, 0, 0, log_suffix = "full_valid")
+        self.test(self.test_dataloader, 0, 0, log_suffix = "full_test")
         for epoch in range(epochs):
             print(f"Epoch {epoch+1}/{self.args.epochs}")
             print("-------------------------------------------------------------")
