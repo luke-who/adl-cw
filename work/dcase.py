@@ -98,33 +98,31 @@ class Trainer:
         
     def log_metrics(
         self, 
-        epoch: int, 
-        batch: int, 
-        current_bsize: int, 
+        epoch: int,
+        step: int, 
         loss: float, 
         count: int, 
         class_count: int, 
         log_suffix: str = "train"
     ):
-        steps = epoch * self.train_set_size + batch * self.args.batch_size + current_bsize
-        self.summary_writer.add_scalar("epoch", epoch, steps)
+        self.summary_writer.add_scalar("epoch", epoch, step)
         self.summary_writer.add_scalars(
                 "accuracy",
                 {log_suffix: percentageArr(count[0], count[1])},
-                steps
+                step
         )
         self.summary_writer.add_scalars(
                 "class_accuracy_" + log_suffix,
                 {str(k): v for k, v in enumerate(percentageArr(class_count[:,0], class_count[:,1]))},
-                steps
+                step
         )
         self.summary_writer.add_scalars(
                 "loss",
                 {log_suffix: loss},
-                steps
+                step
         )
         
-    def log_plot(self, epoch, total_confusion_matrix):
+    def log_plot(self, epoch, total_confusion_matrix, log_suffix = "test"):
         midpoint = (total_confusion_matrix.max() + total_confusion_matrix.min())/2
 
         fig, ax = plt.subplots(figsize=(8,8))
@@ -146,11 +144,12 @@ class Trainer:
         image = image / 255
         image_y, image_x = image.shape[0], image.shape[1]
         image = image[:,:,0:3]
-        self.summary_writer.add_image('confusion_matrix', image, epoch, dataformats='HWC')
+        self.summary_writer.add_image('confusion_matrix_' + log_suffix, image, epoch, dataformats='HWC')
         
     def training_loop(self):
         self.nonfull_training()
         self.full_training(self.args.epochs)
+        self.summary_writer.close()
         
     def nonfull_training(self):
         print("Non-full training.")
@@ -166,15 +165,13 @@ class Trainer:
             for batch, (X, y) in enumerate(self.train_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
                 current_bsize = len(X)
+                step = epoch * self.train_batches + batch
                 logits, loss = self.train_step((X, y)) # X is the feature, y is the the true label
 
                 if batch % self.args.metric_frequency == 0:
-                    batch_count, class_count, _ = self.calc_metrics(logits, y, loss, batch, current_bsize, print_metrics = True)
-                    self.log_metrics(epoch, batch, current_bsize, loss, batch_count, class_count)
-            total_batch_count, total_class_count, total_loss, total_confusion_matrix = self.test(self.test_dataloader)
-            self.log_metrics(epoch, batch, current_bsize, total_loss, total_batch_count, total_class_count, log_suffix = "test")
-            self.log_plot(epoch, total_confusion_matrix)
-        self.summary_writer.close()
+                    count, class_count, _ = self.calc_metrics(logits, y, loss, batch, current_bsize, print_metrics = True)
+                    self.log_metrics(epoch, step, loss, count, class_count, log_suffix = "train")
+            self.test(self.test_dataloader, epoch, step, log_suffix = "test")
         
     def train_step(self, train_data: Dataset):
         r"""Train data with forward and backward propagation.
@@ -195,7 +192,7 @@ class Trainer:
         
         return logits, loss.item()
         
-    def test(self, test_dataloader):
+    def test(self, test_dataloader, epoch=0, step=0, log_suffix = "test"):
         self.model.eval()
         batches = len(test_dataloader)
         clips = test_dataloader.dataset._num_clips
@@ -211,9 +208,9 @@ class Trainer:
                 batch_logits[batch] = logits.mean(dim=0)
                 batch_labels[batch] = y[0]
             loss /= batches
-            total_batch_count, total_class_count, total_confusion_matrix = self.calc_metrics(batch_logits, batch_labels, loss, 0, batches, calc_confuMatrix = True)
+            total_count, total_class_count, total_confusion_matrix = self.calc_metrics(batch_logits, batch_labels, loss, 0, batches, calc_confuMatrix = True)
             
-        total_acc =  percentageArr(total_batch_count[0], total_batch_count[1])
+        total_acc =  percentageArr(total_count[0], total_count[1])
         total_class_acc = percentageArr(total_class_count[:,0], total_class_count[:,1])
         total_class_acc = formatCAList(total_class_acc)
         print(
@@ -221,7 +218,8 @@ class Trainer:
             f"Avg loss: {loss:>8f}, "
             f"class_accuracy:[{total_class_acc}]\n"
         )
-        return total_batch_count, total_class_count, loss, total_confusion_matrix
+        self.log_metrics(epoch, step, loss, total_count, total_class_count, log_suffix = log_suffix)
+        self.log_plot(epoch, total_confusion_matrix, log_suffix = log_suffix)
     
 def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") -> str:
     tb_log_dir_prefix = (
