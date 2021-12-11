@@ -153,6 +153,7 @@ class Trainer:
         
     def nonfull_training(self, valid_freq = 1, max_worsen_streak = 5, epoch_limit=200):
         print("Non-full training.")
+        self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_test")
         best_valid_acc = self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_validation")
         best_model = copy.deepcopy(self.model)
         worsen_streak = 0
