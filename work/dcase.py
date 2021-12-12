@@ -155,6 +155,7 @@ class Trainer:
         print("Non-full training.")
         self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_test")
         best_valid_acc = self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_validation")
+        print("first layer weight sum:", self.model.state_dict()['cnn_neuro_stack.0.weight'].sum().item())
         best_model = copy.deepcopy(self.model)
         worsen_streak = 0
         for epoch in range(0, epoch_limit):
@@ -186,6 +187,7 @@ class Trainer:
                     if worsen_streak >= max_worsen_streak:
                         print(f"worsen_streak = {worsen_streak}, terminating non-full training.")
                         break
+            print("first layer weight sum:", self.model.state_dict()['cnn_neuro_stack.0.weight'].sum().item())
             self.test(self.test_dataloader, epoch, step, log_suffix = "nonfull_test")
         
     def full_training(self, epochs):
