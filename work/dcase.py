@@ -295,7 +295,7 @@ def main(args):
 
     # Load datasets.
     training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, offSet = True, normData = True)
-    train_split, valid_split = training_data.split(train_rat = 0.7)
+    train_split, valid_split = training_data.split(train_rat = args.train_ratio)
     test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
 
     # Calculate total number of classes/categories
@@ -351,6 +351,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset-root", default="../data/ADL_DCASE_DATA")
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
     parser.add_argument("--metric-frequency", default=1, type=int)
+    parser.add_argument("--train_ratio", default=0.7, type=float)
     parser.add_argument("--valid-frequency", default=2, type=int)
     parser.add_argument("--max-worsen-streak", default=5, type=int)
     parser.add_argument("--epochs", default=20, type=int)
