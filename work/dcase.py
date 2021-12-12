@@ -147,11 +147,11 @@ class Trainer:
         self.summary_writer.add_image('confusion_matrix_' + log_suffix, image, epoch, dataformats='HWC')
         
     def training_loop(self):
-        self.nonfull_training()
+        self.nonfull_training(valid_freq = self.args.valid_frequency, max_worsen_streak = self.args.max_worsen_streak)
         self.full_training(self.args.epochs)
         self.summary_writer.close()
         
-    def nonfull_training(self, valid_freq = 1, max_worsen_streak = 5, epoch_limit=200):
+    def nonfull_training(self, valid_freq = 2, max_worsen_streak = 5, epoch_limit=200):
         print("Non-full training.")
         self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_test")
         best_valid_acc = self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_validation")
@@ -263,6 +263,8 @@ def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") ->
         f"{args.prefix[1:-1]}"
         f"bs={args.batch_size}_"
         f"lr={args.learning_rate}_" +
+        f"valid_frequency={args.valid_frequency}_"
+        f"max_worsen_streak={args.max_worsen_streak}_"
         (f"dropout={args.dropout}_" if args.dropout!=0 else "") +
         f"run_"
     )
@@ -293,7 +295,7 @@ def main(args):
 
     # Load datasets.
     training_data = dataset.DCASE_clip(Path(args.dataset_root) / "development", 3, offSet = True, normData = True)
-    train_split, valid_split = training_data.split(train_rat = 0.6)
+    train_split, valid_split = training_data.split(train_rat = 0.7)
     test_data = dataset.DCASE_clip(Path(args.dataset_root) / "evaluation" , 3, normData = True, priorNorm = training_data.prior_norm())
 
     # Calculate total number of classes/categories
@@ -349,6 +351,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset-root", default="../data/ADL_DCASE_DATA")
     parser.add_argument("--log-dir", default=Path("logs"), type=Path)
     parser.add_argument("--metric-frequency", default=1, type=int)
+    parser.add_argument("--valid-frequency", default=2, type=int)
+    parser.add_argument("--max-worsen-streak", default=5, type=int)
     parser.add_argument("--epochs", default=20, type=int)
     parser.add_argument("--learning-rate", default=5e-4, type=float)
     parser.add_argument("--dropout", default=0, type=float)
