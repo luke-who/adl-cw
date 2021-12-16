@@ -181,12 +181,12 @@ class Trainer:
                 current_valid_acc = self.test(self.valid_split_dataloader, epoch, step, log_suffix = "nonfull_validation")      
                 if current_valid_acc > best_valid_acc:
                     print("Current model better, updating.")
-                    best_model = copy.deepcopy(self.model)
+                    best_model = copy.deepcopy(self.model.cpu())
                     best_valid_acc = current_valid_acc
                     worsen_streak = 0
                 else:
                     print(f"Current model worse, regressing (worsen_streak={worsen_streak}).")
-                    self.model = best_model
+                    self.model = best_model.to(device)
                     worsen_streak += 1
                     if worsen_streak >= max_worsen_streak:
                         print(f"worsen_streak = {worsen_streak}, terminating non-full training.")
