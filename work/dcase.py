@@ -186,7 +186,7 @@ class Trainer:
                     worsen_streak = 0
                 else:
                     print(f"Current model worse, regressing (worsen_streak={worsen_streak}).")
-                    self.model = best_model.to(device)
+                    self.model = best_model.to(self.device)
                     worsen_streak += 1
                     if worsen_streak >= max_worsen_streak:
                         print(f"worsen_streak = {worsen_streak}, terminating non-full training.")
