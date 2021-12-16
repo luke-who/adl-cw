@@ -32,7 +32,8 @@ class Trainer:
         self, 
         model: nn.Module, 
         dataLoaders: Tuple[DataLoader,DataLoader], 
-        categories: int, 
+        categories: int,
+        categories_type, 
         args: argparse.Namespace, 
         device: torch.device, 
         summary_writer: SummaryWriter
@@ -44,6 +45,7 @@ class Trainer:
         self.test_set_size = len(self.test_dataloader.dataset) # total number of datapoints in test set/evaluation folder
         self.test_batches = len(self.test_dataloader) # number of batches in test set
         self.categories = categories # number of classes/categories
+        self.categories_type = categories_type
         self.args = args
         self.device = device
         self.summary_writer = summary_writer
@@ -129,15 +131,17 @@ class Trainer:
         ax.matshow(total_confusion_matrix, cmap='Greens')
         ax.set_xticks(range(self.categories))
         ax.set_yticks(range(self.categories))
-        # ax.set_xticklabels([])
+        ax.set_xticklabels(self.categories_type)
         ax.set_xlabel("Predicted label.")
-        # ax.set_yticklabels([])
+        ax.set_yticklabels(self.categories_type)
         ax.set_ylabel("True label.")
         for (i, j), z in np.ndenumerate(total_confusion_matrix):
             if z > midpoint:
                 ax.text(j, i, "{:.0f}".format(z), color='white', ha='center', va='center')
             else:
                 ax.text(j, i, "{:.0f}".format(z), ha='center', va='center')
+        plt.xticks(rotation=90, ha='center')
+        plt.tight_layout()
         canvas = FigureCanvas(fig)
         canvas.draw()
         image = np.array(canvas.renderer.buffer_rgba())
@@ -239,7 +243,6 @@ class Trainer:
         with torch.no_grad():
             for batch, (X, y) in enumerate(test_dataloader):
                 X, y = X.to(self.device), y.to(self.device)
-                
                 logits = self.model(X)
                 loss += self.model.loss_fn(logits, y).item()
                 batch_logits[batch] = logits.mean(dim=0)
@@ -265,6 +268,7 @@ def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") ->
         f"{args.prefix[1:-1]}"
         f"bs={args.batch_size}_"
         f"lr={args.learning_rate}_"
+        f"train_ratio={args.train_ratio}"
         f"valid_frequency={args.valid_frequency}_"
         f"max_worsen_streak={args.max_worsen_streak}_" +
         (f"dropout={args.dropout}_" if args.dropout!=0 else "") +
@@ -342,7 +346,7 @@ def main(args):
             flush_secs=5
     )
     dataLoaders = train_dataloader, train_split_dataloader, valid_split_dataloader, test_dataloader
-    trainer = Trainer(model, dataLoaders, categories, args, device, summary_writer)
+    trainer = Trainer(model, dataLoaders, categories, training_data.categories, args, device, summary_writer)
     trainer.training_loop()
     print("Done!")
     
