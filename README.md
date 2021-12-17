@@ -11,4 +11,4 @@ In the main directory submit a job with `sbatch work/train_dcase.sh`
 
 
 
-**Note the data has not been altered in this experiment, it's the same as the original one**
+**Note the data was not altered in this experiment, it's the same as the original one**
