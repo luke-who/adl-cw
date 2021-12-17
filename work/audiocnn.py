@@ -38,7 +38,7 @@ class AudioCNN(nn.Module):
             ),
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=(4, 5), stride=(4, 5)),
+            nn.MaxPool2d(kernel_size=(5, 5), stride=(5, 5)),
             # nn.AdaptiveMaxPool2d(),
             
             
@@ -49,7 +49,7 @@ class AudioCNN(nn.Module):
             # nn.ReLU(),
             
             nn.Dropout(p=args.dropout),
-            nn.Linear(4608, categories)
+            nn.Linear(3072, categories)
         )
 
     def forward(self, x):
