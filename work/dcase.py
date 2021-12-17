@@ -268,7 +268,7 @@ def get_summary_writer_log_dir(args: argparse.Namespace, command_prefix = "") ->
         f"{args.prefix[1:-1]}"
         f"bs={args.batch_size}_"
         f"lr={args.learning_rate}_"
-        f"train_ratio={args.train_ratio}"
+        f"train_ratio={args.train_ratio}_"
         f"valid_frequency={args.valid_frequency}_"
         f"max_worsen_streak={args.max_worsen_streak}_" +
         (f"dropout={args.dropout}_" if args.dropout!=0 else "") +
