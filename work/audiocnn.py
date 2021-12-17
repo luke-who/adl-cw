@@ -42,14 +42,14 @@ class AudioCNN(nn.Module):
             # nn.AdaptiveMaxPool2d(),
             
             
-            nn.Flatten(),
+            # nn.Flatten(),
             nn.Dropout(p=args.dropout),
             nn.Linear(3072,1000),
             nn.BatchNorm1d(1000),
             nn.ReLU(),
             
             nn.Dropout(p=args.dropout),
-            nn.Linear(1000, categories)
+            nn.Linear(3072, categories)
         )
 
     def forward(self, x):
