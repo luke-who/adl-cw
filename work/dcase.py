@@ -67,6 +67,17 @@ class Trainer:
         class_accuracy = []
         class_count = []
         confusion_matrix = np.zeros((categories, categories))
+        if calc_confuMatrix:
+            preds = logits.argmax(dim=1)
+            correct = preds == labels
+            correct_ind = correct.nonzero()
+            wrong_ind = (correct == False).nonzero()
+            print("correct_ind:",correct_ind[0:3])
+            print("correct_ind_logits:",logits[correct_ind[0:3]])
+            print("correct_ind_labels:",labels[correct_ind[0:3]])
+            print("wrong_ind:",wrong_ind[0:3])
+            print("wrong_ind_logits:",logits[wrong_ind[0:3]])
+            print("wrong_ind_labels:",labels[wrong_ind[0:3]])
         
         for i in range(categories):
             preds = logits.argmax(dim=1)
@@ -157,7 +168,7 @@ class Trainer:
         
     def nonfull_training(self, valid_freq = 2, max_worsen_streak = 5, epoch_limit=200):
         print("Non-full training.")
-        self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_test")
+        self.test(self.test_dataloader, 0, 0, log_suffix = "nonfull_test")
         best_valid_acc = self.test(self.valid_split_dataloader, 0, 0, log_suffix = "nonfull_validation")
         print("first layer weight sum:", self.model.state_dict()['cnn_neuro_stack.0.weight'].sum().item())
         best_model = copy.deepcopy(self.model)
