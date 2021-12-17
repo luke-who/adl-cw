@@ -22,4 +22,4 @@ Before running the code on BC4, make sure the "ADL_DCASE_DATA" is unzipped into 
 
 
 
-**Note the data has not been altered in this experiment, it's the same as the original one**
+**Note the data was not altered in this experiment, it's the same as the original one**
