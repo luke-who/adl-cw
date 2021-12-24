@@ -4,15 +4,17 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.10-orange?logo=PyTorch)](https://github.com/pytorch/pytorch/releases/tag/v1.10.0)
 
 Before running the code on BC4, make sure the "ADL_DCASE_DATA" is unzipped into the `data` folder.
-# Example structure:
-`data/ADL_DCASE_DATA/development/labels.csv`
-
-`data/ADL_DCASE_DATA/development/audio/...`
-
-`data/ADL_DCASE_DATA/evaluation/labels.csv`
-
-`data/ADL_DCASE_DATA/evaluation/audio/...`
-
+# Data path:
+```
+data
+└── ADL_DCASE_DATA
+    ├── development
+    │   ├── audio/(1170 .npy files)
+    │   └── labels.csv
+    └── evaluation
+        ├── audio/((390 .npy files))
+        └── labels.csv
+ ```       
 # How to run the code on BC4:
 `$ cd work`
 
@@ -22,4 +24,4 @@ Before running the code on BC4, make sure the "ADL_DCASE_DATA" is unzipped into 
 
 
 
-**Note the data was not altered in this experiment, it's the same as the original one**
+**Note the data was not altered in this experiment, it's the same as the original [DCASE](http://dcase.community/challenge2017/download)**
