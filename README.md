@@ -9,10 +9,10 @@ Before running the code on BC4, make sure the "ADL_DCASE_DATA" is unzipped into 
 data
 └── ADL_DCASE_DATA
     ├── development
-    │   ├── audio/(1170 .npy files)
+    │   ├── audio/(1170 '*.npy' files)
     │   └── labels.csv
     └── evaluation
-        ├── audio/(390 .npy files)
+        ├── audio/(390 '*.npy' files)
         └── labels.csv
  ```       
 # How to run the code on BC4:
