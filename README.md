@@ -12,7 +12,7 @@ data
     │   ├── audio/(1170 .npy files)
     │   └── labels.csv
     └── evaluation
-        ├── audio/((390 .npy files))
+        ├── audio/(390 .npy files)
         └── labels.csv
  ```       
 # How to run the code on BC4:
