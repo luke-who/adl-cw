@@ -3,7 +3,7 @@
 [![python](https://img.shields.io/badge/python-3.7.3-blue?style=plastic&logo=python)](https://www.python.org/downloads/release/python-373/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-1.10-orange?logo=PyTorch)](https://github.com/pytorch/pytorch/releases/tag/v1.10.0)
 
-Before running the code on BC4, make sure the "ADL_DCASE_DATA" is unzipped into the `data` folder.
+Before running the code on BC4, make sure the "ADL_DCASE_DATA" is unzipped into the [`data`](data) folder.
 # Data path:
 ```
 data
