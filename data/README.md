@@ -4,13 +4,13 @@
 
 This is the zip file of the DCASE 2016 dataset. Unzipped it has the following file format:
 ```bash
-├── ADL_DCASE_DATA
-│   ├── development
-│   │   ├── audio/
-│   │   └── labels.csv
-│   └── evaluation
-│       ├── audio/
-│       └── labels.csv
+ADL_DCASE_DATA
+├── development
+│   ├── audio/(1170 '*.npy' files)
+│   └── labels.csv
+└── evaluation
+    ├── audio/(390 '*.npy' files)
+    └── labels.csv
 ```
 
 Each `"audio/"` directory contains all of the data for that split. The data is stored as arrays where each array represents a spectrogram. The spectrograms have been created according to the parameters described in the paper. `"labels.csv"` contains the labels for each audio sample inside `"audio/"`. You should exclusively use the data in `"development/"` for training. The data in `"evaluation/"` is exclusively for evaluating your model. Do not train your model on the data in `"evaluation/"`. This data is also available directly on BlueCrystal at the following location: `/mnt/storage/scratch/qc19291/ADL_DATA/ADL_DCASE_DATA.zip`
