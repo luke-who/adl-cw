@@ -2,7 +2,7 @@
 
 ## ADL_DCASE_DATA
 
-This is the zip file of the DCASE 2016 dataset. Unzipped it has the following file format:
+This is the content of the [DCASE](http://dcase.community/challenge2017/download) dataset. Unzip it has the following contents of directories in a tree-like format:
 ```bash
 ADL_DCASE_DATA
 ├── development
